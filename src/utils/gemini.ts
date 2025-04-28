@@ -8,7 +8,7 @@ export class GeminiService {
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
     // Hardcoded API key for testing
-    const apiKey = "AIzaSyALQ2Lsvo8TVsl6V_FKzEKCB1B3N6qxHGM";
+    const apiKey = "";
 
     console.log("Using hardcoded Gemini API Key for testing");
     this.genAI = new GoogleGenerativeAI(apiKey);
