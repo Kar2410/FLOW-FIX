@@ -1,0 +1,7 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "flowfix.geminiApiKey": "AIzaSyALQ2Lsvo8TVsl6V_FKzEKCB1B3N6qxHGM",
+  "flowfix.aiProvider": "gemini"
+}

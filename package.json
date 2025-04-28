@@ -1,0 +1,112 @@
+{
+  "name": "flowfix",
+  "displayName": "FlowFix",
+  "description": "AI-powered Error Assistant for VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:flowfix.fixCurrentError",
+    "onCommand:flowfix.openChat"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "flowfix.fixCurrentError",
+        "title": "FixFlow: Fix Current Error"
+      },
+      {
+        "command": "flowfix.openChat",
+        "title": "FixFlow: Open Chat"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flowfix-sidebar",
+          "title": "FlowFix",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "flowfix-sidebar": [
+        {
+          "type": "webview",
+          "id": "flowfix.chatView",
+          "name": "Chat",
+          "icon": "media/icon.svg",
+          "contextualTitle": "FlowFix Chat"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FlowFix",
+      "properties": {
+        "flowfix.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key for error analysis"
+        },
+        "flowfix.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Google Gemini API Key for error analysis",
+          "scope": "application"
+        },
+        "flowfix.aiProvider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "gemini"
+          ],
+          "default": "openai",
+          "description": "Select AI provider for error analysis",
+          "scope": "application"
+        },
+        "flowfix.sharepointUrl": {
+          "type": "string",
+          "default": "",
+          "description": "SharePoint URL for internal knowledge base"
+        },
+        "flowfix.autoFetch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic error fetching"
+        },
+        "flowfix.modelTemperature": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Model temperature (0-1)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.1.3",
+    "axios": "^1.6.0",
+    "openai": "^4.0.0"
+  }
+}
