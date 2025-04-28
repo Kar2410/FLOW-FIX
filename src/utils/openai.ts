@@ -9,8 +9,7 @@ export class OpenAIService {
     this.context = context;
 
     // Your OpenAI API key
-    const apiKey =
-      "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";
+    const apiKey = "";
 
     if (!apiKey) {
       vscode.window.showErrorMessage("OpenAI API key is not configured.");
