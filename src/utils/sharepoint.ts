@@ -14,7 +14,7 @@ export class SharePoint {
       "https://docs.google.com/document/d/10NayoBF7aNo-oO3FA7Ejap6IsmCNrTfM-G64spza2v8/edit?usp=sharing";
 
     // Initialize Gemini
-    const apiKey = "AIzaSyALQ2Lsvo8TVsl6V_FKzEKCB1B3N6qxHGM";
+    const apiKey = "";
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
