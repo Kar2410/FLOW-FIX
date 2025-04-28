@@ -14,7 +14,7 @@ export class SharePoint {
       "https://docs.google.com/document/d/10NayoBF7aNo-oO3FA7Ejap6IsmCNrTfM-G64spza2v8/edit?usp=sharing";
 
     // Initialize Gemini
-    const apiKey = "";
+    const apiKey = ""; // You'll need to add your API key here
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
@@ -23,14 +23,14 @@ export class SharePoint {
       // Get the content from the Google Doc
       const docContent = await this.getGoogleDocContent();
       if (!docContent) {
-        return null;
+        return "Unable to access the internal knowledge base.";
       }
 
       // Extract key error information
       const errorInfo = this.extractErrorInfo(error);
 
-      // First, let AI analyze if the documentation contains relevant information
-      const analysisPrompt = `You are a coding assistant analyzing if documentation contains relevant solutions for an error.
+      // First, let AI perform a strict relevance check
+      const analysisPrompt = `You are a technical error analyzer determining if documentation precisely matches an error.
 
 Error: ${error}
 Error Type: ${errorInfo.type}
@@ -40,33 +40,65 @@ Documentation Content:
 ${docContent}
 
 Instructions:
-1. Analyze if the documentation contains information relevant to this specific error
-2. Consider:
-   - The exact error type and message
-   - The programming context (language, function, variable types)
-   - The specific problem being addressed
-3. Return ONLY "RELEVANT" if you find a meaningful match, or "NOT_RELEVANT" if not
+1. STRICTLY analyze if the documentation contains a SPECIFIC solution for THIS EXACT error
+2. Consider the following criteria for relevance:
+   - The exact error message matches or is highly similar
+   - The programming language/framework matches
+   - The documentation contains a direct solution for this specific error case
+   - The error context (variable types, function usage) matches
+3. Return ONLY "RELEVANT" if ALL criteria are met with high confidence, otherwise return "NOT_RELEVANT"
 
 Guidelines:
-- Only consider it relevant if the documentation addresses this specific type of error
-- Ignore general or unrelated information
-- Consider the programming context and error type together`;
+- NEVER return "RELEVANT" if you're unsure or if it's a partial match
+- If the documentation addresses similar errors but not this specific case, return "NOT_RELEVANT"
+- General solutions for error categories are NOT relevant unless they directly address this specific error
+- Keyword similarity alone is NOT sufficient for relevance
+- Only return "RELEVANT" if a developer would consider the documentation a direct solution for this exact error`;
 
       const model = this.genAI.getGenerativeModel({
         model: "gemini-2.0-flash",
       });
+
       const analysisResult = await model.generateContent(analysisPrompt);
       const analysisResponse = await analysisResult.response;
-      const isRelevant = analysisResponse.text().includes("RELEVANT");
+      const analysisText = analysisResponse.text().trim();
 
-      if (!isRelevant) {
-        return null;
+      // Only proceed if we get an explicit "RELEVANT" response
+      if (analysisText !== "RELEVANT") {
+        return "No solution present in the internal knowledge base.";
       }
 
-      // Only if relevant content is found, generate the solution
-      const solutionPrompt = `You are a coding assistant helping beginners understand and fix errors. 
-      You have confirmed that our documentation contains relevant information for this error.
-      Please provide a clear, beginner-friendly solution using ONLY the information from our documentation.
+      // Additional verification check to prevent false positives
+      const verificationPrompt = `You are a verification system performing a second strict check on error relevance.
+
+Error: ${error}
+Error Type: ${errorInfo.type}
+Error Context: ${errorInfo.context}
+
+Documentation Content:
+${docContent}
+
+Rate the relevance of the documentation to this specific error on a scale of 1-10, where:
+- 10: Perfect match with exact error and solution
+- 7-9: Very good match with directly applicable solution
+- 4-6: Partial match with somewhat relevant information
+- 1-3: Poor match with only tangentially related information
+
+Return ONLY the numeric score, nothing else.`;
+
+      const verificationResult = await model.generateContent(
+        verificationPrompt
+      );
+      const verificationResponse = await verificationResult.response;
+      const relevanceScore = parseInt(verificationResponse.text().trim());
+
+      // Only proceed if relevance score is 7 or higher
+      if (isNaN(relevanceScore) || relevanceScore < 7) {
+        return "No solution present in the internal knowledge base.";
+      }
+
+      // Only if double-verified, generate the solution
+      const solutionPrompt = `You are a coding assistant providing solutions EXCLUSIVELY from documentation.
 
 Error: ${error}
 Error Type: ${errorInfo.type}
@@ -76,130 +108,98 @@ Documentation Content:
 ${docContent}
 
 Instructions:
-1. Use ONLY the information from our documentation
-2. Format the solution as:
+1. Extract ONLY the relevant part of the documentation that directly addresses this error
+2. Format your response as:
    # Error Explanation
-   [Clear explanation of this specific error]
+   [Concise explanation of the specific error]
 
-   # Solution
-   [Steps to fix this specific error]
+   # Solution from Internal Knowledge Base
+   [Steps to fix this specific error, directly from documentation]
 
    # Corrected Code Example
    \`\`\`[language]
-   [Relevant code example from documentation]
+   [Code example from documentation]
    \`\`\`
 
-Guidelines:
-- Focus on this specific error type and context
-- Only include information directly relevant to solving this error
-- Keep explanations clear and specific
-- Reference specific parts of the documentation`;
+IMPORTANT:
+- If you cannot find a DIRECT solution for this SPECIFIC error in the documentation, respond ONLY with "No solution present in the internal knowledge base."
+- Do NOT create or extrapolate solutions not explicitly in the documentation
+- Do NOT combine multiple partial solutions
+- Do NOT use general programming knowledge - ONLY use information from the documentation`;
 
       const solutionResult = await model.generateContent(solutionPrompt);
       const solutionResponse = await solutionResult.response;
-      const solution = solutionResponse.text();
+      const solution = solutionResponse.text().trim();
 
-      // Validate the solution format and content
+      // Final validation - check if the solution looks genuine
       if (
+        solution === "No solution present in the internal knowledge base." ||
         !solution.includes("# Error Explanation") ||
-        !solution.includes("# Solution") ||
-        !solution.includes("# Corrected Code Example")
+        !solution.includes("# Solution from Internal Knowledge Base") ||
+        !solution.includes("# Corrected Code Example") ||
+        solution.includes("general solution") ||
+        solution.includes("generally") ||
+        solution.includes("common error") ||
+        solution.toLowerCase().includes("typically") ||
+        solution.toLowerCase().includes("usually")
       ) {
-        return null;
+        return "No solution present in the internal knowledge base.";
       }
 
-      return solution.trim();
+      return solution;
     } catch (error) {
       console.error("Error searching knowledge base:", error);
-      return null;
+      return "An error occurred while searching the internal knowledge base.";
     }
   }
 
   private extractErrorInfo(error: string): { type: string; context: string } {
-    // Extract error type (e.g., "cannot be used as a function")
-    const typeMatch = error.match(/error: (.*?)(?:\n|$)/);
-    const type = typeMatch ? typeMatch[1].trim() : error;
+    // Extract more detailed error information
 
-    // Extract context (file, line number, function)
-    const contextMatch = error.match(/In (.*?):/);
-    const context = contextMatch ? contextMatch[1] : "";
+    // Extract error type - look for pattern "error: something" or just use first line
+    const typeMatch = error.match(/error:?\s+(.*?)(?:\n|$)/i);
+    const type = typeMatch ? typeMatch[1].trim() : error.split("\n")[0].trim();
 
-    return { type, context };
-  }
+    // Try to identify programming language/framework from error format
+    let language = "";
+    if (error.includes("TypeError:")) language = "JavaScript/TypeScript";
+    else if (error.includes("SyntaxError:")) language = "JavaScript/TypeScript";
+    else if (error.includes("ImportError:")) language = "Python";
+    else if (error.includes("RuntimeError:")) language = "Python";
+    else if (error.includes("NullPointerException")) language = "Java";
+    else if (error.includes("ValueError:")) language = "Python";
 
-  private findRelevantContent(content: string, errorMessage: string): string {
-    const lines = content.split("\n");
-    let relevantSections: string[] = [];
-    let currentSection: string[] = [];
-    let isRelevantSection = false;
+    // Extract context - look for code snippets, file paths, line numbers
+    const fileMatch = error.match(/(?:in|at|from)\s+([^:]+?):(\d+)/);
+    const functionMatch = error.match(/(?:in|at)\s+([a-zA-Z0-9_.]+)\(/);
+    const lineMatch = error.match(/line\s+(\d+)/i);
 
-    // Extract error type from the error message
-    const errorType =
-      errorMessage.match(/error: (.*?)[\n\[]/)?.[1] || errorMessage;
+    const file = fileMatch ? fileMatch[1].trim() : "";
+    const line = lineMatch
+      ? lineMatch[1].trim()
+      : fileMatch
+      ? fileMatch[2].trim()
+      : "";
+    const func = functionMatch ? functionMatch[1].trim() : "";
 
-    for (const line of lines) {
-      // Check if line contains error-related keywords or matches the error type
-      if (this.containsErrorKeywords(line, errorType)) {
-        isRelevantSection = true;
-        if (currentSection.length > 0) {
-          relevantSections.push(currentSection.join("\n"));
-          currentSection = [];
-        }
-      }
+    const contextParts = [];
+    if (language) contextParts.push(`Language: ${language}`);
+    if (file) contextParts.push(`File: ${file}`);
+    if (line) contextParts.push(`Line: ${line}`);
+    if (func) contextParts.push(`Function: ${func}`);
 
-      if (isRelevantSection) {
-        // Skip lines that are just error messages or code output
-        if (
-          !line.includes("error:") &&
-          !line.includes("[Running]") &&
-          !line.includes("[Done]")
-        ) {
-          currentSection.push(line);
-        }
+    // Extract code snippets if present
+    const codeMatch = error.match(/```(?:\w+)?\n([\s\S]+?)\n```/);
+    const code = codeMatch ? `Code: ${codeMatch[1].trim()}` : "";
+    if (code) contextParts.push(code);
 
-        // If we hit a blank line or section end, save the section
-        if (line.trim() === "" || line.startsWith("##")) {
-          if (currentSection.length > 1) {
-            relevantSections.push(currentSection.join("\n"));
-          }
-          currentSection = [];
-          isRelevantSection = false;
-        }
-      }
-    }
-
-    // Add any remaining content
-    if (currentSection.length > 0) {
-      relevantSections.push(currentSection.join("\n"));
-    }
-
-    // Format the output to be more concise
-    return relevantSections
-      .map((section) => section.trim())
-      .filter((section) => section.length > 0)
-      .join("\n\n");
-  }
-
-  private containsErrorKeywords(line: string, errorMessage: string): boolean {
-    const errorWords = errorMessage.toLowerCase().split(/\s+/);
-    const lineLower = line.toLowerCase();
-
-    // Check for exact matches of error type
-    if (lineLower.includes(errorMessage.toLowerCase())) {
-      return true;
-    }
-
-    // Check for common error-related terms
-    const errorTerms = [
-      "error",
-      "fix",
-      "solution",
-      "correct",
-      "wrong",
-      "invalid",
-      "type",
-    ];
-    return errorTerms.some((term) => lineLower.includes(term));
+    return {
+      type,
+      context:
+        contextParts.length > 0
+          ? contextParts.join("\n")
+          : "No additional context",
+    };
   }
 
   private async getGoogleDocContent(): Promise<string | null> {
