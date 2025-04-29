@@ -1,12 +1,16 @@
 import * as vscode from "vscode";
 import axios from "axios";
-import { AzureChatOpenAI } from "@langchain/azure-openai";
-import { BaseMessage, HumanMessage, SystemMessage } from "langchain/schema";
+import { ChatOpenAI } from "@langchain/openai";
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 
 export class SharePoint {
+  private llm: ChatOpenAI;
   private context: vscode.ExtensionContext;
   private sharepointUrl: string;
-  private llm: AzureChatOpenAI;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -14,17 +18,24 @@ export class SharePoint {
     this.sharepointUrl =
       "https://docs.google.com/document/d/10NayoBF7aNo-oO3FA7Ejap6IsmCNrTfM-G64spza2v8/edit?usp=sharing";
 
-    // Initialize Azure OpenAI
-    const AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxx0f";
-    const AZURE_OPENAI_ENDPOINT =
-      "https://kgnwl0lm6yi5ugbopenai.openai.azure.com/";
+    // Azure OpenAI configuration for SharePoint integration
+    const AZURE_OPENAI_API_KEY = "";
+    const AZURE_OPENAI_ENDPOINT = "";
     const AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4-deployment";
 
-    this.llm = new AzureChatOpenAI({
+    this.llm = new ChatOpenAI({
       openAIApiKey: AZURE_OPENAI_API_KEY,
-      azureOpenAIEndpoint: AZURE_OPENAI_ENDPOINT,
+      azureOpenAIApiKey: AZURE_OPENAI_API_KEY,
       azureOpenAIApiDeploymentName: AZURE_OPENAI_DEPLOYMENT_NAME,
-      azureOpenAIApiVersion: "2024-10-01-preview",
+      azureOpenAIApiVersion: "2024-02-15-preview",
+      azureOpenAIApiInstanceName: AZURE_OPENAI_ENDPOINT.replace(
+        "https://",
+        ""
+      ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: AZURE_OPENAI_ENDPOINT,
+      },
+      streaming: true,
     });
   }
 
@@ -70,12 +81,12 @@ Guidelines:
         new HumanMessage(analysisPrompt),
       ];
 
-      const analysisResponse = await this.llm.call(messages);
+      const analysisResponse = await this.llm.invoke(messages);
       const analysisText = analysisResponse.content.toString().trim();
 
       // Only proceed if we get an explicit "RELEVANT" response
       if (analysisText !== "RELEVANT") {
-        return "No solution present in the internal knowledge base.";
+        return "No solution found in internal knowledge base.";
       }
 
       // Additional verification check to prevent false positives
@@ -101,14 +112,14 @@ Return ONLY the numeric score, nothing else.`;
         new HumanMessage(verificationPrompt),
       ];
 
-      const verificationResponse = await this.llm.call(verificationMessages);
+      const verificationResponse = await this.llm.invoke(verificationMessages);
       const relevanceScore = parseInt(
         verificationResponse.content.toString().trim()
       );
 
       // Only proceed if relevance score is 7 or higher
       if (isNaN(relevanceScore) || relevanceScore < 7) {
-        return "No solution present in the internal knowledge base.";
+        return "No solution found in internal knowledge base.";
       }
 
       // Only if double-verified, generate the solution
@@ -136,7 +147,7 @@ Instructions:
    \`\`\`
 
 IMPORTANT:
-- If you cannot find a DIRECT solution for this SPECIFIC error in the documentation, respond ONLY with "No solution present in the internal knowledge base."
+- If you cannot find a DIRECT solution for this SPECIFIC error in the documentation, respond ONLY with "No solution found in internal knowledge base."
 - Do NOT create or extrapolate solutions not explicitly in the documentation
 - Do NOT combine multiple partial solutions
 - Do NOT use general programming knowledge - ONLY use information from the documentation`;
@@ -146,12 +157,12 @@ IMPORTANT:
         new HumanMessage(solutionPrompt),
       ];
 
-      const solutionResponse = await this.llm.call(solutionMessages);
+      const solutionResponse = await this.llm.invoke(solutionMessages);
       const solution = solutionResponse.content.toString().trim();
 
       // Final validation - check if the solution looks genuine
       if (
-        solution === "No solution present in the internal knowledge base." ||
+        solution === "No solution found in internal knowledge base." ||
         !solution.includes("# Error Explanation") ||
         !solution.includes("# Solution from Internal Knowledge Base") ||
         !solution.includes("# Corrected Code Example") ||
@@ -161,7 +172,7 @@ IMPORTANT:
         solution.toLowerCase().includes("typically") ||
         solution.toLowerCase().includes("usually")
       ) {
-        return "No solution present in the internal knowledge base.";
+        return "No solution found in internal knowledge base.";
       }
 
       return solution;
@@ -172,8 +183,6 @@ IMPORTANT:
   }
 
   private extractErrorInfo(error: string): { type: string; context: string } {
-    // Extract more detailed error information
-
     // Extract error type - look for pattern "error: something" or just use first line
     const typeMatch = error.match(/error:?\s+(.*?)(?:\n|$)/i);
     const type = typeMatch ? typeMatch[1].trim() : error.split("\n")[0].trim();

@@ -1,24 +1,36 @@
 import * as vscode from "vscode";
-import { AzureChatOpenAI } from "@langchain/azure-openai";
-import { BaseMessage, HumanMessage, SystemMessage } from "langchain/schema";
+import { ChatOpenAI } from "@langchain/openai";
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
 
 export class AzureOpenAIService {
-  private llm: AzureChatOpenAI;
+  private llm: ChatOpenAI;
   private context: vscode.ExtensionContext;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
 
     // Azure OpenAI configuration
-    const AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxx0f";
-    const AZURE_OPENAI_ENDPOINT = "h/";
+    const AZURE_OPENAI_API_KEY = "";
+    const AZURE_OPENAI_ENDPOINT = "";
     const AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4-deployment";
 
-    this.llm = new AzureChatOpenAI({
+    this.llm = new ChatOpenAI({
       openAIApiKey: AZURE_OPENAI_API_KEY,
-      azureOpenAIEndpoint: AZURE_OPENAI_ENDPOINT,
+      azureOpenAIApiKey: AZURE_OPENAI_API_KEY,
       azureOpenAIApiDeploymentName: AZURE_OPENAI_DEPLOYMENT_NAME,
-      azureOpenAIApiVersion: "2024-10-01-preview",
+      azureOpenAIApiVersion: "2024-02-15-preview",
+      azureOpenAIApiInstanceName: AZURE_OPENAI_ENDPOINT.replace(
+        "https://",
+        ""
+      ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: AZURE_OPENAI_ENDPOINT,
+      },
+      streaming: true,
     });
   }
 
@@ -55,8 +67,16 @@ Keep the response focused and concise.`;
         new HumanMessage(userPrompt),
       ];
 
-      const response = await this.llm.call(messages);
-      return response.content.toString() || "No response from Azure OpenAI";
+      let fullResponse = "";
+      const response = await this.llm.stream(messages);
+
+      for await (const chunk of response) {
+        if (chunk.content) {
+          fullResponse += chunk.content;
+        }
+      }
+
+      return fullResponse || "No response from Azure OpenAI";
     } catch (error: any) {
       console.error("Azure OpenAI API error:", error);
       return `Error analyzing the error message: ${error.message}`;
