@@ -2,11 +2,11 @@ import * as vscode from "vscode";
 import { OpenAIService } from "./utils/openai";
 import { SharePoint } from "./utils/sharepoint";
 import { ChatViewProvider } from "./webview/chatViewProvider";
-import { GeminiService } from "./utils/gemini";
+import { AzureOpenAIService } from "./utils/azureOpenAI";
 
 let chatViewProvider: ChatViewProvider;
 let openai: OpenAIService;
-let gemini: GeminiService;
+let azureOpenAI: AzureOpenAIService;
 let sharepoint: SharePoint;
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -18,12 +18,12 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log("OpenAI service initialized");
 
     try {
-      gemini = new GeminiService(context);
-      console.log("Gemini service initialized");
+      azureOpenAI = new AzureOpenAIService(context);
+      console.log("Azure OpenAI service initialized");
     } catch (error) {
-      console.error("Failed to initialize Gemini:", error);
+      console.error("Failed to initialize Azure OpenAI:", error);
       vscode.window.showErrorMessage(
-        "Failed to initialize Gemini service. Please check your API key configuration."
+        "Failed to initialize Azure OpenAI service. Please check your API key configuration."
       );
     }
 
@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
     chatViewProvider = new ChatViewProvider(
       context,
       openai,
-      gemini,
+      azureOpenAI,
       sharepoint
     );
     console.log("ChatViewProvider initialized");

@@ -1,25 +1,25 @@
 import * as vscode from "vscode";
 import { OpenAIService } from "../utils/openai";
 import { SharePoint } from "../utils/sharepoint";
-import { GeminiService } from "../utils/gemini";
+import { AzureOpenAIService } from "../utils/azureOpenAI";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "flowfix.chatView";
   private _view?: vscode.WebviewView;
   private _context: vscode.ExtensionContext;
   private _openai: OpenAIService;
-  private _gemini: GeminiService;
+  private _azureOpenAI: AzureOpenAIService;
   private _sharepoint: SharePoint;
 
   constructor(
     context: vscode.ExtensionContext,
     openai: OpenAIService,
-    gemini: GeminiService,
+    azureOpenAI: AzureOpenAIService,
     sharepoint: SharePoint
   ) {
     this._context = context;
     this._openai = openai;
-    this._gemini = gemini;
+    this._azureOpenAI = azureOpenAI;
     this._sharepoint = sharepoint;
   }
 
@@ -57,8 +57,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
 
     try {
-      // First analyze with Gemini for public sources
-      const geminiResult = await this._gemini.analyzeError(error);
+      // First analyze with Azure OpenAI for public sources
+      const azureOpenAIResult = await this._azureOpenAI.analyzeError(error);
 
       // Show loading state for internal knowledge base
       this._view.webview.postMessage({
@@ -77,7 +77,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         type: "results",
         openai: {
           success: true,
-          content: geminiResult,
+          content: azureOpenAIResult,
           isPublic: true,
         },
         sharepoint: {

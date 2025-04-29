@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 import axios from "axios";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AzureChatOpenAI } from "@langchain/azure-openai";
+import { BaseMessage, HumanMessage, SystemMessage } from "langchain/schema";
 
 export class SharePoint {
   private context: vscode.ExtensionContext;
   private sharepointUrl: string;
-  private genAI: GoogleGenerativeAI;
+  private llm: AzureChatOpenAI;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -13,9 +14,18 @@ export class SharePoint {
     this.sharepointUrl =
       "https://docs.google.com/document/d/10NayoBF7aNo-oO3FA7Ejap6IsmCNrTfM-G64spza2v8/edit?usp=sharing";
 
-    // Initialize Gemini
-    const apiKey = ""; // You'll need to add your API key here
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    // Initialize Azure OpenAI
+    const AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxx0f";
+    const AZURE_OPENAI_ENDPOINT =
+      "https://kgnwl0lm6yi5ugbopenai.openai.azure.com/";
+    const AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4-deployment";
+
+    this.llm = new AzureChatOpenAI({
+      openAIApiKey: AZURE_OPENAI_API_KEY,
+      azureOpenAIEndpoint: AZURE_OPENAI_ENDPOINT,
+      azureOpenAIApiDeploymentName: AZURE_OPENAI_DEPLOYMENT_NAME,
+      azureOpenAIApiVersion: "2024-10-01-preview",
+    });
   }
 
   async searchKnowledgeBase(error: string): Promise<string | null> {
@@ -55,13 +65,13 @@ Guidelines:
 - Keyword similarity alone is NOT sufficient for relevance
 - Only return "RELEVANT" if a developer would consider the documentation a direct solution for this exact error`;
 
-      const model = this.genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-      });
+      const messages: BaseMessage[] = [
+        new SystemMessage("You are a technical error analyzer."),
+        new HumanMessage(analysisPrompt),
+      ];
 
-      const analysisResult = await model.generateContent(analysisPrompt);
-      const analysisResponse = await analysisResult.response;
-      const analysisText = analysisResponse.text().trim();
+      const analysisResponse = await this.llm.call(messages);
+      const analysisText = analysisResponse.content.toString().trim();
 
       // Only proceed if we get an explicit "RELEVANT" response
       if (analysisText !== "RELEVANT") {
@@ -86,11 +96,15 @@ Rate the relevance of the documentation to this specific error on a scale of 1-1
 
 Return ONLY the numeric score, nothing else.`;
 
-      const verificationResult = await model.generateContent(
-        verificationPrompt
+      const verificationMessages: BaseMessage[] = [
+        new SystemMessage("You are a verification system."),
+        new HumanMessage(verificationPrompt),
+      ];
+
+      const verificationResponse = await this.llm.call(verificationMessages);
+      const relevanceScore = parseInt(
+        verificationResponse.content.toString().trim()
       );
-      const verificationResponse = await verificationResult.response;
-      const relevanceScore = parseInt(verificationResponse.text().trim());
 
       // Only proceed if relevance score is 7 or higher
       if (isNaN(relevanceScore) || relevanceScore < 7) {
@@ -127,9 +141,13 @@ IMPORTANT:
 - Do NOT combine multiple partial solutions
 - Do NOT use general programming knowledge - ONLY use information from the documentation`;
 
-      const solutionResult = await model.generateContent(solutionPrompt);
-      const solutionResponse = await solutionResult.response;
-      const solution = solutionResponse.text().trim();
+      const solutionMessages: BaseMessage[] = [
+        new SystemMessage("You are a coding assistant."),
+        new HumanMessage(solutionPrompt),
+      ];
+
+      const solutionResponse = await this.llm.call(solutionMessages);
+      const solution = solutionResponse.content.toString().trim();
 
       // Final validation - check if the solution looks genuine
       if (
