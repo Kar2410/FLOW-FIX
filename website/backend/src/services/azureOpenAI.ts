@@ -12,7 +12,7 @@ export class AzureOpenAIService {
     const requiredEnvVars = {
       AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY,
       AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
-      AZURE_OPENAI_INSTANCE_NAME: process.env.AZURE_OPENAI_INSTANCE_NAME,
+      AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT,
     };
 
     const missingVars = Object.entries(requiredEnvVars)
@@ -32,7 +32,7 @@ export class AzureOpenAIService {
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
       azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
       azureOpenAIApiVersion: "2024-02-15-preview",
-      azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_INSTANCE_NAME,
+      azureOpenAIBasePath: process.env.AZURE_OPENAI_ENDPOINT,
       streaming: true,
     });
   }
