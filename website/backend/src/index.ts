@@ -8,21 +8,31 @@ import { errorRouter } from "./routes/errorRoutes";
 import { adminRouter } from "./routes/adminRoutes";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
+const MONGODB_URI = "mongodb://localhost:27017/flowfix";
+
 mongoose
-  .connect("mongodb://localhost:27017/error-solver")
+  .connect(MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1); // Exit if cannot connect to database
+  });
 
 // Routes
 app.use("/api/error", errorRouter);
 app.use("/api/admin", adminRouter);
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy" });
+});
 
 // Error handling middleware
 app.use(
