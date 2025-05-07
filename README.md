@@ -26,6 +26,7 @@ FlowFix is a VS Code extension that helps developers quickly understand and fix 
 ### Automatic Error Detection
 
 FlowFix automatically detects errors in your code and provides solutions when:
+
 - New errors appear in the Problems panel
 - You save a file with errors
 - You run code with errors
@@ -64,4 +65,32 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - see LICENSE file for details 
+MIT License - see LICENSE file for details
+
+### Docker Setup
+
+1. Build the Docker images:
+
+```bash
+# Build backend image
+docker build -t flowfix-backend ./backend
+
+# Build frontend image
+docker build -t flowfix-frontend ./frontend
+```
+
+2. Run the containers:
+
+```bash
+# Option 1: Run standard MongoDB container
+docker run -d --name flowfix-mongodb -p 27017:27017 mongo:latest
+
+# Option 2: Run UHC MongoDB container (if you have access to UHC's Docker Hub)
+docker run -d --name flowfix-mongodb -p 27017:27017 docker-hub.repo1.uhc.com/mongodb/mongodb-atlas-local:latest
+
+# Run backend container
+docker run -d --name flowfix-backend -p 3000:3000 --env-file .env flowfix-backend
+
+# Run frontend container
+docker run -d --name flowfix-frontend -p 5173:5173 flowfix-frontend
+```

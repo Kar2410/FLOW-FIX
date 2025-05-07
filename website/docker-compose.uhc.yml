@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: docker-hub.repo1.uhc.com/mongodb/mongodb-atlas-local:latest
+    container_name: flowfix-mongodb-uhc
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=flowfix
+    networks:
+      - flowfix-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: flowfix-backend-uhc
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/flowfix?authSource=admin
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+    depends_on:
+      - mongodb
+    networks:
+      - flowfix-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: flowfix-frontend-uhc
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - flowfix-network
+
+networks:
+  flowfix-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
