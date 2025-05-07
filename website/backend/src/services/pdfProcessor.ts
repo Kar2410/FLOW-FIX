@@ -7,7 +7,7 @@ const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
   azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
   azureOpenAIApiVersion: "2024-02-15-preview",
-  azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_INSTANCE_NAME,
+  azureOpenAIBasePath: process.env.AZURE_OPENAI_ENDPOINT,
 });
 
 export async function processPDF(filePath: string) {
