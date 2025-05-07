@@ -27,7 +27,18 @@ const MONGODB_URI = "mongodb://localhost:27017/flowfix";
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB"))
+  .then(() => {
+    console.log("Connected to MongoDB");
+    // Create text index for search functionality
+    if (mongoose.connection.db) {
+      return mongoose.connection.db
+        .collection("documents")
+        .createIndex({ content: "text" });
+    }
+  })
+  .then(() => {
+    console.log("Text index created for search functionality");
+  })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
     process.exit(1); // Exit if cannot connect to database
