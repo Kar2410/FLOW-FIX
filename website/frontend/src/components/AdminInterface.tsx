@@ -12,9 +12,12 @@ import {
   Box,
   TextField,
   CircularProgress,
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
+import { API_ENDPOINTS, ERROR_MESSAGES } from "../config";
 
 interface Document {
   _id: string;
@@ -30,6 +33,8 @@ const AdminInterface: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -37,18 +42,28 @@ const AdminInterface: React.FC = () => {
 
   const fetchDocuments = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:3001/api/admin/documents"
-      );
+      setLoading(true);
+      const response = await axios.get(API_ENDPOINTS.DOCUMENTS);
       setDocuments(response.data);
     } catch (error) {
       console.error("Error fetching documents:", error);
+      setError(ERROR_MESSAGES.CONNECTION_ERROR);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = (event.target as HTMLInputElement).files;
     if (files && files[0]) {
+      if (files[0].size > 10 * 1024 * 1024) {
+        setError(ERROR_MESSAGES.FILE_TOO_LARGE);
+        return;
+      }
+      if (!files[0].name.toLowerCase().endsWith(".pdf")) {
+        setError(ERROR_MESSAGES.INVALID_FILE);
+        return;
+      }
       setSelectedFile(files[0]);
     }
   };
@@ -57,21 +72,24 @@ const AdminInterface: React.FC = () => {
     if (!selectedFile || !title.trim()) return;
 
     setUploading(true);
+    setError(null);
     const formData = new FormData();
     formData.append("document", selectedFile);
     formData.append("title", title);
 
     try {
-      await axios.post("http://localhost:3001/api/admin/upload", formData, {
+      await axios.post(API_ENDPOINTS.UPLOAD, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
+      setSuccess("Document uploaded successfully!");
       setTitle("");
       setSelectedFile(null);
       fetchDocuments();
     } catch (error) {
       console.error("Error uploading document:", error);
+      setError(ERROR_MESSAGES.UPLOAD_ERROR);
     } finally {
       setUploading(false);
     }
@@ -79,10 +97,12 @@ const AdminInterface: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:3001/api/admin/documents/${id}`);
+      await axios.delete(`${API_ENDPOINTS.DOCUMENTS}/${id}`);
+      setSuccess("Document deleted successfully!");
       fetchDocuments();
     } catch (error) {
       console.error("Error deleting document:", error);
+      setError(ERROR_MESSAGES.CONNECTION_ERROR);
     }
   };
 
@@ -133,30 +153,54 @@ const AdminInterface: React.FC = () => {
           Uploaded Documents
         </Typography>
 
-        <List>
-          {documents.map((doc) => (
-            <ListItem key={doc._id}>
-              <ListItemText
-                primary={doc.title}
-                secondary={`File: ${doc.fileName} | Size: ${(
-                  doc.fileSize / 1024
-                ).toFixed(2)} KB | Uploaded: ${new Date(
-                  doc.uploadDate
-                ).toLocaleDateString()}`}
-              />
-              <ListItemSecondaryAction>
-                <IconButton
-                  edge="end"
-                  aria-label="delete"
-                  onClick={() => handleDelete(doc._id)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
-        </List>
+        {loading ? (
+          <CircularProgress />
+        ) : (
+          <List>
+            {documents.map((doc) => (
+              <ListItem key={doc._id}>
+                <ListItemText
+                  primary={doc.title}
+                  secondary={`File: ${doc.fileName} | Size: ${(
+                    doc.fileSize / 1024
+                  ).toFixed(2)} KB | Uploaded: ${new Date(
+                    doc.uploadDate
+                  ).toLocaleDateString()}`}
+                />
+                <ListItemSecondaryAction>
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleDelete(doc._id)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
+        )}
       </Paper>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(null)}
+      >
+        <Alert severity="success" onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

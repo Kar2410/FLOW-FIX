@@ -9,10 +9,13 @@ import {
   Box,
   Typography,
   CircularProgress,
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
 import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import axios from "axios";
+import { API_ENDPOINTS, ERROR_MESSAGES } from "../config";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -40,6 +43,7 @@ const UserInterface: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<{
     analysis: string;
     internalSources: Array<{ title: string; fileName: string }>;
@@ -49,16 +53,15 @@ const UserInterface: React.FC = () => {
     if (!errorMessage.trim()) return;
 
     setLoading(true);
+    setError(null);
     try {
-      const response = await axios.post(
-        "http://localhost:3001/api/error/analyze",
-        {
-          errorMessage,
-        }
-      );
+      const response = await axios.post(API_ENDPOINTS.ERROR_ANALYSIS, {
+        errorMessage,
+      });
       setAnalysis(response.data);
     } catch (error) {
       console.error("Error analyzing:", error);
+      setError(ERROR_MESSAGES.ANALYSIS_ERROR);
     } finally {
       setLoading(false);
     }
@@ -90,7 +93,7 @@ const UserInterface: React.FC = () => {
           variant="contained"
           color="primary"
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || !errorMessage.trim()}
           sx={{ mb: 3 }}
         >
           {loading ? <CircularProgress size={24} /> : "Analyze Error"}
@@ -133,6 +136,16 @@ const UserInterface: React.FC = () => {
           </Box>
         )}
       </Paper>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
