@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
 
 const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/flowfix";
+  process.env.MONGODB_URI || "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
 const COLLECTION_NAME = "documents";
 

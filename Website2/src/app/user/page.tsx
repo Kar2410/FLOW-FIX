@@ -1,107 +1,149 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
-export default function UserPage() {
+export default function UserInterface() {
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [publicResults, setPublicResults] = useState<string>("");
-  const [internalResults, setInternalResults] = useState<string>("");
+  const [publicSolution, setPublicSolution] = useState("");
+  const [internalSolution, setInternalSolution] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeTab, setActiveTab] = useState("public");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleAnalyze = async () => {
+    if (!errorMessage.trim()) return;
+
+    setIsAnalyzing(true);
+    setPublicSolution("");
+    setInternalSolution("");
 
     try {
-      // TODO: Implement API calls to get results from both sources
-      // This is a placeholder for the actual implementation
-      const response = await fetch("/api/analyze", {
+      // Analyze using public source
+      const publicResponse = await fetch("/api/analyze/public", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ errorMessage }),
       });
 
-      const data = await response.json();
-      setPublicResults(data.publicResults);
-      setInternalResults(data.internalResults);
+      if (publicResponse.ok) {
+        const publicData = await publicResponse.json();
+        setPublicSolution(publicData.solution);
+      }
+
+      // Analyze using internal knowledge base
+      const internalResponse = await fetch("/api/analyze/internal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ errorMessage }),
+      });
+
+      if (internalResponse.ok) {
+        const internalData = await internalResponse.json();
+        setInternalSolution(internalData.solution);
+      }
     } catch (error) {
-      console.error("Error analyzing:", error);
+      console.error("Analysis error:", error);
     } finally {
-      setIsLoading(false);
+      setIsAnalyzing(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Error Analysis</h1>
-
-      <form onSubmit={handleSubmit} className="mb-8">
-        <div className="mb-4">
-          <label
-            htmlFor="errorMessage"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Paste your error message
-          </label>
-          <textarea
-            id="errorMessage"
-            value={errorMessage}
-            onChange={(e) => setErrorMessage(e.target.value)}
-            className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Paste your error message here..."
-            required
-          />
-        </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">FlowFix Error Analyzer</h1>
+      <div className="mb-4">
+        <textarea
+          placeholder="Paste your error message here..."
+          value={errorMessage}
+          onChange={(e) => setErrorMessage(e.target.value)}
+          className="w-full h-32 p-2 border rounded-md"
+        />
         <button
-          type="submit"
-          disabled={isLoading}
-          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50"
+          onClick={handleAnalyze}
+          disabled={isAnalyzing || !errorMessage.trim()}
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md disabled:bg-gray-300"
         >
-          {isLoading ? "Analyzing..." : "Analyze Error"}
+          {isAnalyzing ? (
+            <span className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
+            </span>
+          ) : (
+            "Analyze Error"
+          )}
         </button>
-      </form>
+      </div>
 
-      <Tabs defaultValue="public" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="public">Public Sources</TabsTrigger>
-          <TabsTrigger value="internal">Internal Knowledge Base</TabsTrigger>
-        </TabsList>
+      <div className="border rounded-lg">
+        <div className="flex border-b">
+          <button
+            onClick={() => setActiveTab("public")}
+            className={`px-4 py-2 ${
+              activeTab === "public" ? "bg-gray-100" : ""
+            }`}
+          >
+            Public Source
+          </button>
+          <button
+            onClick={() => setActiveTab("internal")}
+            className={`px-4 py-2 ${
+              activeTab === "internal" ? "bg-gray-100" : ""
+            }`}
+          >
+            Internal Knowledge Base
+          </button>
+        </div>
 
-        <TabsContent value="public">
-          <div className="bg-white p-6 rounded-lg shadow">
-            {publicResults ? (
-              <div
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: publicResults }}
-              />
+        <div className="p-4">
+          {isAnalyzing ? (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : activeTab === "public" ? (
+            publicSolution ? (
+              <div className="prose max-w-none">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: publicSolution.replace(/\n/g, "<br />"),
+                  }}
+                />
+              </div>
             ) : (
               <p className="text-gray-500">
-                No results yet. Submit an error to see solutions from public
-                sources.
+                Enter an error message and click Analyze to get a solution.
               </p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="internal">
-          <div className="bg-white p-6 rounded-lg shadow">
-            {internalResults ? (
-              <div
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: internalResults }}
-              />
+            )
+          ) : internalSolution ? (
+            Array.isArray(internalSolution) ? (
+              <div className="space-y-4">
+                {internalSolution.map((result, index) => (
+                  <div key={index} className="border-b pb-4">
+                    <div className="prose max-w-none">
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: result.content.replace(/\n/g, "<br />"),
+                        }}
+                      />
+                    </div>
+                    <div className="mt-2 text-sm text-gray-500">
+                      Source: {result.source} (Page {result.page})
+                      <br />
+                      Relevance: {Math.round(result.relevance * 100)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-gray-500">
-                No results yet. Submit an error to see solutions from internal
-                knowledge base.
-              </p>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+              <p className="text-gray-500">{internalSolution}</p>
+            )
+          ) : (
+            <p className="text-gray-500">
+              Enter an error message and click Analyze to search the internal
+              knowledge base.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

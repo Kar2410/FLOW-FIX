@@ -5,7 +5,7 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/flowfix";
+  process.env.MONGODB_URI || "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
 const COLLECTION_NAME = "documents";
 
