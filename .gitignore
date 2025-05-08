@@ -5,3 +5,5 @@ node_modules
 *.vsix
 .env
 *.log 
+.next
+next-env.d.ts

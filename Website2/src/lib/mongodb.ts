@@ -5,7 +5,13 @@ const MONGODB_URI =
 const DB_NAME = "flowfix";
 const COLLECTION_NAME = "documents";
 
+// This function should only be called from server-side code
 export async function setupMongoDB() {
+  if (typeof window !== "undefined") {
+    // Don't run on client side
+    return;
+  }
+
   try {
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db(DB_NAME);

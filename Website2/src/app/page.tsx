@@ -1,15 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { setupMongoDB } from "@/lib/mongodb";
 
 export default function Home() {
-  useEffect(() => {
-    // Run MongoDB setup when the application starts
-    setupMongoDB().catch(console.error);
-  }, []);
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="max-w-4xl w-full space-y-8">
