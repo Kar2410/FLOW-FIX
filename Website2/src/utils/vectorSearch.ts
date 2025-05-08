@@ -1,7 +1,7 @@
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { PDFLoader } from "langchain/document_loaders/fs/pdf";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { Document } from "langchain/document";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { RecursiveCharacterTextSplitter } from "@langchain/text-splitter";
+import { Document } from "@langchain/core/documents";
 import fs from "fs";
 import path from "path";
 import { cosineSimilarity } from "./mathUtils";
@@ -20,7 +20,7 @@ if (!fs.existsSync(CHUNKS_DIR)) {
 // Initialize Azure OpenAI embeddings
 const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-  azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+  azureOpenAIApiDeploymentName: "text-embedding-ada-002",
   azureOpenAIApiVersion: "2024-10-01-preview",
   azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
     "https://",
