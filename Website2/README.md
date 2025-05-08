@@ -41,7 +41,8 @@ A web-based version of the FlowFix error analysis tool that provides solutions f
     # Azure OpenAI Configuration
     AZURE_OPENAI_API_KEY=your_azure_openai_api_key
     AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-    AZURE_OPENAI_DEPLOYMENT_NAME=your_azure_openai_deployment_name
+    AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4-deployment  # For chat completions
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=text-embedding-ada-002  # For embeddings
    ```
 
 3. Set up MongoDB:
