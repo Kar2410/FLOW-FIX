@@ -20,7 +20,8 @@ if (!fs.existsSync(CHUNKS_DIR)) {
 // Initialize Azure OpenAI embeddings
 const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-  azureOpenAIApiDeploymentName: "text-embedding-ada-002",
+  azureOpenAIApiDeploymentName:
+    process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4-deployment",
   azureOpenAIApiVersion: "2024-10-01-preview",
   azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
     "https://",
