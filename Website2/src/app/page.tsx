@@ -1,45 +1,224 @@
 "use client";
 
+import { useState } from "react";
+import {
+  FiSearch,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiUpload,
+  FiExternalLink,
+} from "react-icons/fi";
 import Link from "next/link";
 
 export default function Home() {
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAnalyzing(true);
+    setError(null);
+    setAnalysis(null);
+
+    try {
+      const response = await fetch(`/api/analyze/${activeTab}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ errorMessage }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Analysis failed");
+      }
+
+      const data = await response.json();
+      setAnalysis(data);
+    } catch (error) {
+      console.error("Analysis error:", error);
+      setError("Failed to analyze error. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="max-w-4xl w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to FlowFix
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Your AI-powered error analysis and solution tool
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900">FlowFix</h1>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+            >
+              <FiExternalLink className="w-4 h-4 mr-2" />
+              Admin Portal
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Error Analysis Portal
+          </h2>
+          <p className="text-lg text-gray-600">
+            Get instant analysis and solutions for your error messages
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Link href="/user" className="block">
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <h2 className="text-2xl font-semibold text-primary mb-4">
-                User Interface
-              </h2>
-              <p className="text-gray-600">
-                Analyze errors and get solutions from both public sources and
-                internal knowledge base.
-              </p>
-            </div>
-          </Link>
+        <div className="bg-white rounded-xl shadow-xl p-8 mb-8 transform transition-all duration-200 hover:shadow-2xl">
+          <div className="flex justify-center space-x-4 mb-8">
+            <button
+              onClick={() => setActiveTab("public")}
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === "public"
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Public Source
+            </button>
+            <button
+              onClick={() => setActiveTab("internal")}
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === "internal"
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Internal Knowledge Base
+            </button>
+          </div>
 
-          <Link href="/admin" className="block">
-            <div className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <h2 className="text-2xl font-semibold text-primary mb-4">
-                Admin Interface
-              </h2>
-              <p className="text-gray-600">
-                Manage internal knowledge base and upload documentation.
-              </p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label
+                htmlFor="errorMessage"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Error Message
+              </label>
+              <div className="relative">
+                <textarea
+                  id="errorMessage"
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  placeholder="Paste your error message here..."
+                  value={errorMessage}
+                  onChange={(e) => setErrorMessage(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </Link>
+
+            <button
+              type="submit"
+              disabled={isAnalyzing || !errorMessage.trim()}
+              className={`w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white transition-all duration-200
+                ${
+                  isAnalyzing || !errorMessage.trim()
+                    ? "bg-indigo-400 cursor-not-allowed"
+                    : "bg-indigo-600 hover:bg-indigo-700 transform hover:scale-[1.02]"
+                }`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <FiSearch className="w-5 h-5 mr-2" />
+                  Analyze Error
+                </>
+              )}
+            </button>
+          </form>
         </div>
-      </div>
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8 rounded-r-lg transform transition-all duration-200 hover:shadow-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <FiAlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {analysis && (
+          <div className="bg-white rounded-xl shadow-xl p-8 transform transition-all duration-200 hover:shadow-2xl">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+              Analysis Results
+            </h2>
+            <div className="space-y-6">
+              {analysis.errorType && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Error Type
+                  </h3>
+                  <p className="text-gray-600">{analysis.errorType}</p>
+                </div>
+              )}
+              {analysis.cause && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Root Cause
+                  </h3>
+                  <p className="text-gray-600">{analysis.cause}</p>
+                </div>
+              )}
+              {analysis.solution && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Solution
+                  </h3>
+                  <p className="text-gray-600">{analysis.solution}</p>
+                </div>
+              )}
+              {analysis.prevention && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Prevention
+                  </h3>
+                  <p className="text-gray-600">{analysis.prevention}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
