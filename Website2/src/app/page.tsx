@@ -9,37 +9,50 @@ import {
   FiExternalLink,
 } from "react-icons/fi";
 import Link from "next/link";
+import Image from "next/image";
+import ReactMarkdown from "react-markdown";
 
 export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [publicAnalysis, setPublicAnalysis] = useState<string | null>(null);
+  const [internalAnalysis, setInternalAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAnalyze = async () => {
     setIsAnalyzing(true);
     setError(null);
-    setAnalysis(null);
-
+    setPublicAnalysis(null);
+    setInternalAnalysis(null);
     try {
-      const response = await fetch(`/api/analyze/${activeTab}`, {
+      // Always fetch public solution
+      const publicRes = await fetch("/api/analyze/public", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ errorMessage }),
       });
+      const publicData = await publicRes.json();
+      setPublicAnalysis(publicData.solution || "No solution found.");
 
-      if (!response.ok) {
-        throw new Error("Analysis failed");
+      // Always fetch internal solution
+      const internalRes = await fetch("/api/analyze/internal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ errorMessage }),
+      });
+      const internalData = await internalRes.json();
+      if (
+        internalData?.solution &&
+        !internalData?.solution.toLowerCase().includes("no matching solutions")
+      ) {
+        setInternalAnalysis(internalData.solution);
+      } else {
+        setInternalAnalysis(
+          "No information found for this error in the internal knowledge base."
+        );
       }
-
-      const data = await response.json();
-      setAnalysis(data);
-    } catch (error) {
-      console.error("Analysis error:", error);
+    } catch (err) {
       setError("Failed to analyze error. Please try again.");
     } finally {
       setIsAnalyzing(false);
@@ -51,8 +64,14 @@ export default function Home() {
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">FlowFix</h1>
+            <div className="flex items-center space-x-3">
+              <Image
+                src="/uhc-logo.png"
+                alt="UHC Logo"
+                width={36}
+                height={36}
+              />
+              <h1 className="text-2xl font-bold text-gray-900">UHC FlowFix</h1>
             </div>
             <Link
               href="/admin"
@@ -99,7 +118,13 @@ export default function Home() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAnalyze();
+            }}
+            className="space-y-6"
+          >
             <div>
               <label
                 htmlFor="errorMessage"
@@ -177,47 +202,33 @@ export default function Home() {
           </div>
         )}
 
-        {analysis && (
-          <div className="bg-white rounded-xl shadow-xl p-8 transform transition-all duration-200 hover:shadow-2xl">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-              Analysis Results
-            </h2>
-            <div className="space-y-6">
-              {analysis.errorType && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Error Type
-                  </h3>
-                  <p className="text-gray-600">{analysis.errorType}</p>
+        {/* Tabbed Results */}
+        <div className="bg-white rounded-xl shadow-xl p-8 transform transition-all duration-200 hover:shadow-2xl">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+            {activeTab === "public"
+              ? "Public Source Result"
+              : "Internal Knowledge Base Result"}
+          </h2>
+          <div className="space-y-6">
+            {isAnalyzing ? (
+              <div className="text-center text-indigo-600 font-semibold">
+                Analyzing...
+              </div>
+            ) : activeTab === "public" ? (
+              publicAnalysis ? (
+                <div className="prose max-w-none">
+                  <ReactMarkdown children={publicAnalysis || ""} />
                 </div>
-              )}
-              {analysis.cause && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Root Cause
-                  </h3>
-                  <p className="text-gray-600">{analysis.cause}</p>
+              ) : null
+            ) : (
+              internalAnalysis && (
+                <div className="prose max-w-none">
+                  <ReactMarkdown children={internalAnalysis || ""} />
                 </div>
-              )}
-              {analysis.solution && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Solution
-                  </h3>
-                  <p className="text-gray-600">{analysis.solution}</p>
-                </div>
-              )}
-              {analysis.prevention && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Prevention
-                  </h3>
-                  <p className="text-gray-600">{analysis.prevention}</p>
-                </div>
-              )}
-            </div>
+              )
+            )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   );
