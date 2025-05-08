@@ -36,13 +36,15 @@ export async function POST(request: Request) {
     // Create embeddings using Azure OpenAI
     const embeddings = new OpenAIEmbeddings({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-      azureOpenAIApiDeploymentName:
-        process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME,
+      azureOpenAIApiDeploymentName: "text-embedding-ada-002",
       azureOpenAIApiVersion: "2024-02-15-preview",
       azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
         "https://",
         ""
       ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: process.env.AZURE_OPENAI_ENDPOINT,
+      },
     });
 
     // Connect to MongoDB

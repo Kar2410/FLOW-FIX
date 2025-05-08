@@ -22,13 +22,15 @@ export async function POST(request: Request) {
     // Create embeddings for the error message using Azure OpenAI
     const embeddings = new OpenAIEmbeddings({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-      azureOpenAIApiDeploymentName:
-        process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME,
+      azureOpenAIApiDeploymentName: "text-embedding-ada-002",
       azureOpenAIApiVersion: "2024-02-15-preview",
       azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
         "https://",
         ""
       ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: process.env.AZURE_OPENAI_ENDPOINT,
+      },
     });
     const errorEmbedding = await embeddings.embedQuery(errorMessage);
 
@@ -63,12 +65,15 @@ export async function POST(request: Request) {
     // Generate public solution using Azure OpenAI
     const chat = new ChatOpenAI({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-      azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+      azureOpenAIApiDeploymentName: "gpt-4-deployment",
       azureOpenAIApiVersion: "2024-02-15-preview",
       azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
         "https://",
         ""
       ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: process.env.AZURE_OPENAI_ENDPOINT,
+      },
       temperature: 0.7,
     });
 
