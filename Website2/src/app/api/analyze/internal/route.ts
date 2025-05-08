@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
-const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/?directConnection=true";
+const MONGODB_URI = "mongodb://localhost:27017/flowfix";
 const DB_NAME = "flowfix";
 const COLLECTION_NAME = "documents";
 
@@ -28,8 +27,8 @@ export async function POST(request: Request) {
     // Create embeddings for the error message using Azure OpenAI
     const embeddings = new OpenAIEmbeddings({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-      azureOpenAIApiDeploymentName: "text-embedding-ada-002",
-      azureOpenAIApiVersion: "2024-02-15-preview",
+      azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+      azureOpenAIApiVersion: "2024-10-01-preview",
       azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
         "https://",
         ""
