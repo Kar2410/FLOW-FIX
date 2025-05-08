@@ -1,7 +1,7 @@
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { RecursiveCharacterTextSplitter } from "@langchain/text-splitter";
-import { Document } from "@langchain/core/documents";
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { Document } from "langchain/document";
 import fs from "fs";
 import path from "path";
 import { cosineSimilarity } from "./mathUtils";
@@ -52,7 +52,7 @@ export async function processPDF(file: File) {
 
     // Generate embeddings for each chunk
     const chunksWithEmbeddings = await Promise.all(
-      splitDocs.map(async (doc) => {
+      splitDocs.map(async (doc: Document) => {
         const embedding = await embeddings.embedQuery(doc.pageContent);
         return {
           content: doc.pageContent,
