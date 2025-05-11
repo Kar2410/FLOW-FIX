@@ -3,6 +3,7 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
 import { MongoClient } from "mongodb";
+import { cosineSimilarity } from "./mathUtils";
 
 // MongoDB connection configuration
 const MONGODB_URI = "mongodb://localhost:27017/?directConnection=true";
@@ -11,8 +12,6 @@ const COLLECTION_NAME = "internal_knowledge_base";
 
 // MongoDB connection options
 const mongoOptions = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   serverSelectionTimeoutMS: 5000,
   connectTimeoutMS: 10000,
 };
@@ -46,44 +45,6 @@ async function getMongoClient() {
   }
 }
 
-// Helper function to ensure vector search index exists
-async function ensureVectorSearchIndex(client: MongoClient) {
-  try {
-    const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
-
-    // Check if index exists
-    const indexes = await collection.indexes();
-    const vectorIndexExists = indexes.some(
-      (index) => index.name === "flowfix_vector_search_index"
-    );
-
-    if (!vectorIndexExists) {
-      console.log("Creating vector search index...");
-      await db.command({
-        createSearchIndex: COLLECTION_NAME,
-        name: "flowfix_vector_search_index",
-        definition: {
-          mappings: {
-            dynamic: false,
-            fields: {
-              vector: {
-                type: "vector",
-                dimensions: 3072,
-                similarity: "dotProduct",
-              },
-            },
-          },
-        },
-      });
-      console.log("Vector search index created successfully");
-    }
-  } catch (error) {
-    console.error("Error ensuring vector search index:", error);
-    throw error;
-  }
-}
-
 export async function processPDF(file: File) {
   let client;
   try {
@@ -111,8 +72,6 @@ export async function processPDF(file: File) {
 
     // Connect to MongoDB
     client = await getMongoClient();
-    await ensureVectorSearchIndex(client);
-
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
@@ -123,7 +82,7 @@ export async function processPDF(file: File) {
         const embedding = await embeddings.embedQuery(doc.pageContent);
         return {
           content: doc.pageContent,
-          vector: embedding,
+          embedding: embedding,
           metadata: {
             source: fileName,
             page: doc.metadata.page,
@@ -168,39 +127,22 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
-    // Perform vector search using MongoDB's $search aggregation
-    console.log("Performing vector search...");
-    const searchResults = await collection
-      .aggregate([
-        {
-          $search: {
-            index: "flowfix_vector_search_index",
-            knnBeta: {
-              vector: queryEmbedding,
-              path: "vector",
-              k: 5,
-            },
-          },
-        },
-        {
-          $project: {
-            content: 1,
-            metadata: 1,
-            score: { $meta: "searchScore" },
-          },
-        },
-      ])
-      .toArray();
-    console.log(`Found ${searchResults.length} results`);
+    // Get all documents from MongoDB
+    console.log("Fetching documents from MongoDB...");
+    const documents = await collection.find({}).toArray();
+    console.log(`Found ${documents.length} documents`);
 
-    // Filter results by threshold and format
-    const relevantResults = searchResults
-      .filter((result) => result.score >= threshold)
-      .map((result) => ({
-        content: result.content,
-        similarity: result.score,
-        metadata: result.metadata,
-      }));
+    // Calculate similarity scores
+    const results = documents.map((doc) => ({
+      content: doc.content,
+      similarity: cosineSimilarity(queryEmbedding, doc.embedding),
+      metadata: doc.metadata,
+    }));
+
+    // Sort by similarity and filter by threshold
+    const relevantResults = results
+      .filter((result) => result.similarity >= threshold)
+      .sort((a, b) => b.similarity - a.similarity);
     console.log(
       `${relevantResults.length} results above threshold ${threshold}`
     );
