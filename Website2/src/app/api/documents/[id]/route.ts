@@ -3,8 +3,7 @@ import { MongoClient } from "mongodb";
 
 const MONGODB_URI = "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
-const DOCUMENTS_COLLECTION = "documents";
-const KNOWLEDGE_BASE_COLLECTION = "internal_knowledge_base";
+const COLLECTION_NAME = "documents";
 
 export async function DELETE(
   request: Request,
@@ -13,23 +12,17 @@ export async function DELETE(
   try {
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db(DB_NAME);
-    const documentsCollection = db.collection(DOCUMENTS_COLLECTION);
-    const knowledgeBaseCollection = db.collection(KNOWLEDGE_BASE_COLLECTION);
+    const collection = db.collection(COLLECTION_NAME);
 
-    // Delete document metadata
-    const deleteResult = await documentsCollection.deleteOne({ id: params.id });
+    const result = await collection.deleteOne({ id: params.id });
+    await client.close();
 
-    if (deleteResult.deletedCount === 0) {
-      await client.close();
+    if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
     }
-
-    // Delete corresponding chunks from knowledge base
-    await knowledgeBaseCollection.deleteMany({ documentId: params.id });
-    await client.close();
 
     return NextResponse.json({ message: "Document deleted successfully" });
   } catch (error) {

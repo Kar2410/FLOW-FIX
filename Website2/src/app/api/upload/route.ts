@@ -4,23 +4,7 @@ import { MongoClient } from "mongodb";
 
 const MONGODB_URI = "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
-const DOCUMENTS_COLLECTION = "documents";
-const KNOWLEDGE_BASE_COLLECTION = "internal_knowledge_base";
-
-interface Chunk {
-  content: string;
-  vector: number[];
-  metadata: {
-    page: number;
-  };
-}
-
-interface ProcessPDFResult {
-  success: boolean;
-  fileName?: string;
-  error?: string;
-  chunks?: Chunk[];
-}
+const COLLECTION_NAME = "documents";
 
 export async function POST(request: Request) {
   try {
@@ -32,19 +16,17 @@ export async function POST(request: Request) {
     }
 
     // Process PDF and store chunks
-    const result = (await processPDF(file)) as ProcessPDFResult;
+    const result = await processPDF(file);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
-    // Store document metadata and chunks
+    // Store document metadata
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db(DB_NAME);
-    const documentsCollection = db.collection(DOCUMENTS_COLLECTION);
-    const knowledgeBaseCollection = db.collection(KNOWLEDGE_BASE_COLLECTION);
+    const collection = db.collection(COLLECTION_NAME);
 
-    // Store document metadata
     const document = {
       id: result.fileName,
       name: file.name,
@@ -52,23 +34,7 @@ export async function POST(request: Request) {
       status: "ready",
     };
 
-    await documentsCollection.insertOne(document);
-
-    // Store chunks with their embeddings
-    if (result.chunks && result.chunks.length > 0) {
-      const chunks = result.chunks.map((chunk) => ({
-        documentId: result.fileName,
-        content: chunk.content,
-        vector: chunk.vector,
-        metadata: {
-          page: chunk.metadata.page,
-          source: file.name,
-        },
-      }));
-
-      await knowledgeBaseCollection.insertMany(chunks);
-    }
-
+    await collection.insertOne(document);
     await client.close();
 
     return NextResponse.json({

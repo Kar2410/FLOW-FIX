@@ -5,21 +5,8 @@
  * @returns Cosine similarity score between 0 and 1
  */
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  // Check if vectors are valid
-  if (!vecA || !vecB || !Array.isArray(vecA) || !Array.isArray(vecB)) {
-    console.error("Invalid vectors provided to cosineSimilarity:", {
-      vecA,
-      vecB,
-    });
-    return 0;
-  }
-
   if (vecA.length !== vecB.length) {
-    console.error("Vectors must have the same length:", {
-      vecALength: vecA.length,
-      vecBLength: vecB.length,
-    });
-    return 0;
+    throw new Error("Vectors must have the same length");
   }
 
   let dotProduct = 0;

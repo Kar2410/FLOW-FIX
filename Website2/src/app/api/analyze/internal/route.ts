@@ -12,33 +12,25 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("Analyzing error message:", errorMessage);
+    const similarChunks = await searchSimilarChunks(errorMessage);
 
-    // Search for similar chunks
-    const results = await searchSimilarChunks(errorMessage);
-
-    if (results.length === 0) {
-      console.log("No matching solutions found in internal knowledge base");
+    if (!similarChunks || similarChunks.length === 0) {
       return NextResponse.json({
         solution: "No solution found in internal knowledge base.",
         source: "internal",
       });
     }
 
-    // Get the most relevant result
-    const bestMatch = results[0];
-    console.log(
-      "Found matching solution with similarity:",
-      bestMatch.similarity
-    );
+    // Get the most relevant chunk
+    const mostRelevantChunk = similarChunks[0];
 
     return NextResponse.json({
-      solution: bestMatch.content,
+      solution: mostRelevantChunk.content,
       source: "internal",
-      similarity: bestMatch.similarity,
+      similarity: mostRelevantChunk.similarity,
     });
   } catch (error) {
-    console.error("Error analyzing error:", error);
+    console.error("Error analyzing error message:", error);
     return NextResponse.json(
       { error: "Failed to analyze error message" },
       { status: 500 }
