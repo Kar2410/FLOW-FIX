@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   FiUpload,
@@ -24,6 +24,25 @@ export default function AdminPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Fetch documents on component mount
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch("/api/documents");
+      if (!response.ok) {
+        throw new Error("Failed to fetch documents");
+      }
+      const data = await response.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      setError("Failed to fetch documents");
+    }
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     setIsUploading(true);
@@ -107,6 +126,17 @@ export default function AdminPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">
+            {success}
+          </div>
+        )}
+
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             Knowledge Base Management
@@ -199,7 +229,7 @@ export default function AdminPage() {
                         </span>
                         <button
                           onClick={() => handleDelete(doc.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
+                          className="p-2 text-red-600 hover:text-red-800 transition-colors"
                         >
                           <FiTrash2 className="w-5 h-5" />
                         </button>
@@ -242,18 +272,6 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
-
-        {error && (
-          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-200">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-200">
-            {success}
-          </div>
-        )}
       </main>
     </div>
   );
