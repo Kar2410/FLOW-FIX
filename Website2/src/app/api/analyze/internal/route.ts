@@ -56,9 +56,9 @@ Knowledge base entry (similarity: ${Math.round(bestMatch.similarity * 100)}%):
 ${bestMatch.content}
 
 Instructions:
-1. First, determine if this knowledge base entry contains a DIRECT solution for the specific error above.
-2. If it does NOT contain a direct solution, respond with ONLY: "No solution found in internal knowledge base."
-3. If it DOES contain a direct solution, format your response as:
+1. First, determine if this knowledge base entry contains a revelent/close solution for the specific error above.
+2. If it does NOT contain a revelent/close solution, respond with ONLY: "No solution found in internal knowledge base."
+3. If it DOES contain a revelent/close solution, format your response as:
 
 # Error Analysis
 [One line explanation of the error]
