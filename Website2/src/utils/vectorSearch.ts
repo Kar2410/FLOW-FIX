@@ -3,7 +3,6 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Document } from "langchain/document";
 import { MongoClient } from "mongodb";
-import { cosineSimilarity } from "./mathUtils";
 
 // MongoDB connection configuration
 const MONGODB_URI = "mongodb://localhost:27017/?directConnection=true";
@@ -20,13 +19,9 @@ const mongoOptions = {
 const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
   azureOpenAIApiDeploymentName:
-    process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME ||
-    "embedding-model-txt-embedding-3-large",
-  azureOpenAIApiVersion: "2024-10-01-preview",
-  azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
-    "https://",
-    ""
-  ).replace(".openai.azure.com/", ""),
+    process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME,
+  azureOpenAIApiVersion: "2024-02-15-preview",
+  azureOpenAIApiInstanceName: "kgnwl0lm6yi5ugbopenai",
   configuration: {
     baseURL: process.env.AZURE_OPENAI_ENDPOINT,
   },
@@ -35,7 +30,9 @@ const embeddings = new OpenAIEmbeddings({
 // Helper function to get MongoDB client
 async function getMongoClient() {
   try {
+    console.log("Attempting to connect to MongoDB...");
     const client = await MongoClient.connect(MONGODB_URI, mongoOptions);
+    console.log("Successfully connected to MongoDB");
     return client;
   } catch (error) {
     console.error("Failed to connect to MongoDB:", error);
@@ -79,16 +76,21 @@ export async function processPDF(file: File) {
     console.log("Generating embeddings...");
     const chunksWithEmbeddings = await Promise.all(
       splitDocs.map(async (doc: Document) => {
-        const embedding = await embeddings.embedQuery(doc.pageContent);
-        return {
-          content: doc.pageContent,
-          embedding: embedding,
-          metadata: {
-            source: fileName,
-            page: doc.metadata.page,
-            timestamp: new Date(),
-          },
-        };
+        try {
+          const embedding = await embeddings.embedQuery(doc.pageContent);
+          return {
+            content: doc.pageContent,
+            vector: embedding,
+            metadata: {
+              source: fileName,
+              page: doc.metadata.page,
+              timestamp: new Date(),
+            },
+          };
+        } catch (error) {
+          console.error("Error generating embedding:", error);
+          throw error;
+        }
       })
     );
     console.log("Embeddings generated successfully");
@@ -98,8 +100,23 @@ export async function processPDF(file: File) {
       console.log(
         `Inserting ${chunksWithEmbeddings.length} chunks into MongoDB...`
       );
-      const result = await collection.insertMany(chunksWithEmbeddings);
-      console.log(`Successfully inserted ${result.insertedCount} chunks`);
+      try {
+        const result = await collection.insertMany(chunksWithEmbeddings);
+        console.log(`Successfully inserted ${result.insertedCount} chunks`);
+
+        // Verify the insertion
+        const count = await collection.countDocuments({
+          "metadata.source": fileName,
+        });
+        console.log(
+          `Verified ${count} documents in database for file ${fileName}`
+        );
+
+        return { success: true, fileName, insertedCount: result.insertedCount };
+      } catch (error) {
+        console.error("Error inserting documents into MongoDB:", error);
+        throw error;
+      }
     }
 
     return { success: true, fileName };
@@ -108,7 +125,12 @@ export async function processPDF(file: File) {
     return { success: false, error: "Failed to process PDF" };
   } finally {
     if (client) {
-      await client.close();
+      try {
+        await client.close();
+        console.log("MongoDB connection closed");
+      } catch (error) {
+        console.error("Error closing MongoDB connection:", error);
+      }
     }
   }
 }
@@ -127,27 +149,39 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
-    // Get all documents from MongoDB
-    console.log("Fetching documents from MongoDB...");
-    const documents = await collection.find({}).toArray();
-    console.log(`Found ${documents.length} documents`);
+    // Use MongoDB's vector search
+    const results = await collection
+      .aggregate([
+        {
+          $search: {
+            index: "flowfix_vector_search_index",
+            knnBeta: {
+              vector: queryEmbedding,
+              path: "vector",
+              k: 5,
+              filter: {
+                score: { $gte: threshold },
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            content: 1,
+            metadata: 1,
+            score: { $meta: "searchScore" },
+          },
+        },
+      ])
+      .toArray();
 
-    // Calculate similarity scores
-    const results = documents.map((doc) => ({
-      content: doc.content,
-      similarity: cosineSimilarity(queryEmbedding, doc.embedding),
-      metadata: doc.metadata,
+    console.log(`Found ${results.length} relevant results`);
+
+    return results.map((result) => ({
+      content: result.content,
+      similarity: result.score,
+      metadata: result.metadata,
     }));
-
-    // Sort by similarity and filter by threshold
-    const relevantResults = results
-      .filter((result) => result.similarity >= threshold)
-      .sort((a, b) => b.similarity - a.similarity);
-    console.log(
-      `${relevantResults.length} results above threshold ${threshold}`
-    );
-
-    return relevantResults;
   } catch (error) {
     console.error("Error searching chunks:", error);
     return [];
