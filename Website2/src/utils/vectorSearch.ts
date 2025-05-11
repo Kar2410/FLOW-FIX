@@ -33,17 +33,73 @@ const embeddings = new OpenAIEmbeddings({
   },
 });
 
-export async function processPDF(file: File) {
+// Helper function to get MongoDB client
+async function getMongoClient() {
   try {
+    const client = await MongoClient.connect(MONGODB_URI, mongoOptions);
+    return client;
+  } catch (error) {
+    console.error("Failed to connect to MongoDB:", error);
+    throw new Error(
+      "Failed to connect to MongoDB. Please check your connection settings."
+    );
+  }
+}
+
+// Helper function to ensure vector search index exists
+async function ensureVectorSearchIndex(client: MongoClient) {
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // Check if index exists
+    const indexes = await collection.indexes();
+    const vectorIndexExists = indexes.some(
+      (index) => index.name === "flowfix_vector_search_index"
+    );
+
+    if (!vectorIndexExists) {
+      console.log("Creating vector search index...");
+      await db.command({
+        createSearchIndex: COLLECTION_NAME,
+        name: "flowfix_vector_search_index",
+        definition: {
+          mappings: {
+            dynamic: false,
+            fields: {
+              vector: {
+                type: "vector",
+                dimensions: 3072,
+                similarity: "dotProduct",
+              },
+            },
+          },
+        },
+      });
+      console.log("Vector search index created successfully");
+    }
+  } catch (error) {
+    console.error("Error ensuring vector search index:", error);
+    throw error;
+  }
+}
+
+export async function processPDF(file: File) {
+  let client;
+  try {
+    console.log("Starting PDF processing...");
+
     // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = `${Date.now()}-${file.name}`;
+    console.log(`Processing file: ${fileName}`);
 
     // Load and process the PDF
     const loader = new PDFLoader(
       new Blob([buffer], { type: "application/pdf" })
     );
     const docs = await loader.load();
+    console.log(`PDF loaded successfully. Pages: ${docs.length}`);
 
     // Split text into chunks
     const textSplitter = new RecursiveCharacterTextSplitter({
@@ -51,117 +107,121 @@ export async function processPDF(file: File) {
       chunkOverlap: 200,
     });
     const splitDocs = await textSplitter.splitDocuments(docs);
+    console.log(`Text split into ${splitDocs.length} chunks`);
 
-    // Connect to MongoDB with error handling
-    let client;
-    try {
-      client = await MongoClient.connect(MONGODB_URI, mongoOptions);
-      const db = client.db(DB_NAME);
-      const collection = db.collection(COLLECTION_NAME);
+    // Connect to MongoDB
+    client = await getMongoClient();
+    await ensureVectorSearchIndex(client);
 
-      // Generate embeddings and store in MongoDB
-      const chunksWithEmbeddings = await Promise.all(
-        splitDocs.map(async (doc: Document) => {
-          const embedding = await embeddings.embedQuery(doc.pageContent);
-          return {
-            content: doc.pageContent,
-            vector: embedding,
-            metadata: {
-              source: fileName,
-              page: doc.metadata.page,
-              timestamp: new Date(),
-            },
-          };
-        })
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // Generate embeddings and store in MongoDB
+    console.log("Generating embeddings...");
+    const chunksWithEmbeddings = await Promise.all(
+      splitDocs.map(async (doc: Document) => {
+        const embedding = await embeddings.embedQuery(doc.pageContent);
+        return {
+          content: doc.pageContent,
+          vector: embedding,
+          metadata: {
+            source: fileName,
+            page: doc.metadata.page,
+            timestamp: new Date(),
+          },
+        };
+      })
+    );
+    console.log("Embeddings generated successfully");
+
+    // Insert chunks into MongoDB
+    if (chunksWithEmbeddings.length > 0) {
+      console.log(
+        `Inserting ${chunksWithEmbeddings.length} chunks into MongoDB...`
       );
-
-      // Insert chunks into MongoDB
-      if (chunksWithEmbeddings.length > 0) {
-        await collection.insertMany(chunksWithEmbeddings);
-      }
-
-      return { success: true, fileName };
-    } catch (error) {
-      console.error("MongoDB connection error:", error);
-      throw new Error(
-        "Failed to connect to MongoDB. Please check your connection settings."
-      );
-    } finally {
-      if (client) {
-        await client.close();
-      }
+      const result = await collection.insertMany(chunksWithEmbeddings);
+      console.log(`Successfully inserted ${result.insertedCount} chunks`);
     }
+
+    return { success: true, fileName };
   } catch (error) {
     console.error("Error processing PDF:", error);
     return { success: false, error: "Failed to process PDF" };
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 }
 
 export async function searchSimilarChunks(query: string, threshold = 0.7) {
+  let client;
   try {
+    console.log("Starting similarity search...");
+
     // Generate embedding for the query
     const queryEmbedding = await embeddings.embedQuery(query);
+    console.log("Query embedding generated");
 
-    // Connect to MongoDB with error handling
-    let client;
-    try {
-      client = await MongoClient.connect(MONGODB_URI, mongoOptions);
-      const db = client.db(DB_NAME);
-      const collection = db.collection(COLLECTION_NAME);
+    // Connect to MongoDB
+    client = await getMongoClient();
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
-      // Perform vector search using MongoDB's $search aggregation
-      const searchResults = await collection
-        .aggregate([
-          {
-            $search: {
-              index: "flowfix_vector_search_index",
-              knnBeta: {
-                vector: queryEmbedding,
-                path: "vector",
-                k: 5,
-              },
+    // Perform vector search using MongoDB's $search aggregation
+    console.log("Performing vector search...");
+    const searchResults = await collection
+      .aggregate([
+        {
+          $search: {
+            index: "flowfix_vector_search_index",
+            knnBeta: {
+              vector: queryEmbedding,
+              path: "vector",
+              k: 5,
             },
           },
-          {
-            $project: {
-              content: 1,
-              metadata: 1,
-              score: { $meta: "searchScore" },
-            },
+        },
+        {
+          $project: {
+            content: 1,
+            metadata: 1,
+            score: { $meta: "searchScore" },
           },
-        ])
-        .toArray();
+        },
+      ])
+      .toArray();
+    console.log(`Found ${searchResults.length} results`);
 
-      // Filter results by threshold and format
-      const relevantResults = searchResults
-        .filter((result) => result.score >= threshold)
-        .map((result) => ({
-          content: result.content,
-          similarity: result.score,
-          metadata: result.metadata,
-        }));
+    // Filter results by threshold and format
+    const relevantResults = searchResults
+      .filter((result) => result.score >= threshold)
+      .map((result) => ({
+        content: result.content,
+        similarity: result.score,
+        metadata: result.metadata,
+      }));
+    console.log(
+      `${relevantResults.length} results above threshold ${threshold}`
+    );
 
-      return relevantResults;
-    } catch (error) {
-      console.error("MongoDB connection error:", error);
-      throw new Error(
-        "Failed to connect to MongoDB. Please check your connection settings."
-      );
-    } finally {
-      if (client) {
-        await client.close();
-      }
-    }
+    return relevantResults;
   } catch (error) {
     console.error("Error searching chunks:", error);
     return [];
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 }
 
 export async function deleteDocument(fileName: string) {
   let client;
   try {
-    client = await MongoClient.connect(MONGODB_URI, mongoOptions);
+    console.log(`Deleting document: ${fileName}`);
+
+    client = await getMongoClient();
     const db = client.db(DB_NAME);
     const collection = db.collection(COLLECTION_NAME);
 
@@ -169,6 +229,7 @@ export async function deleteDocument(fileName: string) {
     const result = await collection.deleteMany({
       "metadata.source": fileName,
     });
+    console.log(`Deleted ${result.deletedCount} chunks`);
 
     return { success: true, deletedCount: result.deletedCount };
   } catch (error) {
