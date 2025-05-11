@@ -35,7 +35,9 @@ const embeddings = new OpenAIEmbeddings({
 // Helper function to get MongoDB client
 async function getMongoClient() {
   try {
+    console.log("Connecting to MongoDB...");
     const client = await MongoClient.connect(MONGODB_URI, mongoOptions);
+    console.log("Successfully connected to MongoDB");
     return client;
   } catch (error) {
     console.error("Failed to connect to MongoDB:", error);
@@ -79,6 +81,7 @@ export async function processPDF(file: File) {
           content: doc.pageContent,
           vector,
           metadata: {
+            source: fileName,
             page: doc.metadata.page,
           },
         };
@@ -98,6 +101,10 @@ export async function processPDF(file: File) {
       );
       const result = await collection.insertMany(chunksWithEmbeddings);
       console.log(`Successfully inserted ${result.insertedCount} chunks`);
+
+      // Verify insertion
+      const count = await collection.countDocuments();
+      console.log(`Total documents in collection: ${count}`);
     }
 
     return {
@@ -111,6 +118,7 @@ export async function processPDF(file: File) {
   } finally {
     if (client) {
       await client.close();
+      console.log("MongoDB connection closed");
     }
   }
 }
@@ -135,15 +143,24 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     console.log(`Found ${documents.length} documents`);
 
     if (documents.length === 0) {
+      console.log("No documents found in the database");
       return [];
     }
 
     // Calculate similarity scores
-    const results = documents.map((doc) => ({
-      content: doc.content,
-      similarity: cosineSimilarity(queryEmbedding, doc.vector),
-      metadata: doc.metadata,
-    }));
+    const results = documents
+      .filter((doc) => {
+        if (!doc.vector || !Array.isArray(doc.vector)) {
+          console.log("Skipping document with invalid vector:", doc._id);
+          return false;
+        }
+        return true;
+      })
+      .map((doc) => ({
+        content: doc.content,
+        similarity: cosineSimilarity(queryEmbedding, doc.vector),
+        metadata: doc.metadata,
+      }));
 
     // Sort by similarity and filter by threshold
     const relevantResults = results
@@ -160,6 +177,7 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
   } finally {
     if (client) {
       await client.close();
+      console.log("MongoDB connection closed");
     }
   }
 }
@@ -179,6 +197,14 @@ export async function deleteDocument(fileName: string) {
     });
     console.log(`Deleted ${result.deletedCount} chunks`);
 
+    // Verify deletion
+    const remainingDocs = await collection.countDocuments({
+      "metadata.source": fileName,
+    });
+    console.log(
+      `Remaining documents with source ${fileName}: ${remainingDocs}`
+    );
+
     return { success: true, deletedCount: result.deletedCount };
   } catch (error) {
     console.error("Error deleting document:", error);
@@ -186,6 +212,7 @@ export async function deleteDocument(fileName: string) {
   } finally {
     if (client) {
       await client.close();
+      console.log("MongoDB connection closed");
     }
   }
 }

@@ -12,10 +12,13 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log("Analyzing error message:", errorMessage);
+
     // Search for similar chunks
     const results = await searchSimilarChunks(errorMessage);
 
     if (results.length === 0) {
+      console.log("No matching solutions found in internal knowledge base");
       return NextResponse.json({
         solution: "No solution found in internal knowledge base.",
         source: "internal",
@@ -24,6 +27,10 @@ export async function POST(request: Request) {
 
     // Get the most relevant result
     const bestMatch = results[0];
+    console.log(
+      "Found matching solution with similarity:",
+      bestMatch.similarity
+    );
 
     return NextResponse.json({
       solution: bestMatch.content,
