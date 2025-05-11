@@ -48,7 +48,6 @@ async function getMongoClient() {
 }
 
 export async function processPDF(file: File) {
-  let client;
   try {
     console.log("Starting PDF processing...");
 
@@ -89,24 +88,6 @@ export async function processPDF(file: File) {
     );
     console.log("Embeddings generated successfully");
 
-    // Connect to MongoDB and store chunks
-    client = await getMongoClient();
-    const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
-
-    // Insert chunks into MongoDB
-    if (chunksWithEmbeddings.length > 0) {
-      console.log(
-        `Inserting ${chunksWithEmbeddings.length} chunks into MongoDB...`
-      );
-      const result = await collection.insertMany(chunksWithEmbeddings);
-      console.log(`Successfully inserted ${result.insertedCount} chunks`);
-
-      // Verify insertion
-      const count = await collection.countDocuments();
-      console.log(`Total documents in collection: ${count}`);
-    }
-
     return {
       success: true,
       fileName,
@@ -115,11 +96,6 @@ export async function processPDF(file: File) {
   } catch (error) {
     console.error("Error processing PDF:", error);
     return { success: false, error: "Failed to process PDF" };
-  } finally {
-    if (client) {
-      await client.close();
-      console.log("MongoDB connection closed");
-    }
   }
 }
 
