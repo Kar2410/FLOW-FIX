@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchSimilarChunks } from "@/utils/vectorSearch";
+import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
@@ -32,17 +33,65 @@ export async function POST(request: Request) {
       bestMatch.similarity
     );
 
-    // Format the response consistently with public source
-    const formattedSolution = `# Error Analysis
-${bestMatch.content.split("\n")[0]}
+    // Initialize ChatOpenAI
+    const chat = new ChatOpenAI({
+      azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
+      azureOpenAIApiDeploymentName: "gpt-4-deployment",
+      azureOpenAIApiVersion: "2024-02-15-preview",
+      azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
+        "https://",
+        ""
+      ).replace(".openai.azure.com/", ""),
+      configuration: {
+        baseURL: process.env.AZURE_OPENAI_ENDPOINT,
+      },
+      temperature: 0.7,
+    });
+
+    // Ask LLM to analyze if the match is relevant and format the response
+    const systemPrompt = `You are a coding assistant analyzing if a knowledge base entry contains a solution for a specific error.`;
+    const userPrompt = `Error to analyze: ${errorMessage}
+
+Knowledge base entry (similarity: ${Math.round(bestMatch.similarity * 100)}%):
+${bestMatch.content}
+
+Instructions:
+1. First, determine if this knowledge base entry contains a DIRECT solution for the specific error above.
+2. If it does NOT contain a direct solution, respond with ONLY: "No solution found in internal knowledge base."
+3. If it DOES contain a direct solution, format your response as:
+
+# Error Analysis
+[One line explanation of the error]
 
 # Solution
-${bestMatch.content.split("\n").slice(1).join("\n")}
+[2-3 bullet points with clear steps]
+
+# Code Fix
+\`\`\`[language]
+[only the relevant code fix]
+\`\`\`
 
 # Source
 From internal knowledge base (${Math.round(
       bestMatch.similarity * 100
-    )}% relevance)`;
+    )}% relevance)
+
+Keep the response focused and concise. Only include information that directly addresses the error.`;
+
+    const response = await chat.invoke([
+      ["system", systemPrompt],
+      ["user", userPrompt],
+    ]);
+
+    const formattedSolution = response.content.toString().trim();
+
+    // If the LLM determined there's no solution, return early
+    if (formattedSolution === "No solution found in internal knowledge base.") {
+      return NextResponse.json({
+        solution: formattedSolution,
+        source: "internal",
+      });
+    }
 
     return NextResponse.json({
       solution: formattedSolution,
