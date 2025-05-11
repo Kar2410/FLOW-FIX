@@ -12,27 +12,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const similarChunks = await searchSimilarChunks(errorMessage);
+    // Search for similar chunks
+    const results = await searchSimilarChunks(errorMessage);
 
-    if (!similarChunks || similarChunks.length === 0) {
+    if (results.length === 0) {
       return NextResponse.json({
-        solution: "No solution found in internal knowledge base.",
-        source: "internal",
+        errorType: "Unknown Error",
+        cause: "No matching solutions found in internal knowledge base",
+        solution: "Please contact support or try searching in public sources",
+        prevention:
+          "Consider adding this error case to the internal knowledge base",
       });
     }
 
-    // Get the most relevant chunk
-    const mostRelevantChunk = similarChunks[0];
+    // Get the most relevant result
+    const bestMatch = results[0];
 
     return NextResponse.json({
-      solution: mostRelevantChunk.content,
-      source: "internal",
-      similarity: mostRelevantChunk.similarity,
+      errorType: "Internal Knowledge Base Match",
+      cause: "Found in internal documentation",
+      solution: bestMatch.content,
+      prevention: "Documentation available in internal knowledge base",
+      source: bestMatch.metadata.source,
+      page: bestMatch.metadata.page,
+      similarity: bestMatch.similarity,
     });
   } catch (error) {
-    console.error("Error analyzing error message:", error);
+    console.error("Error analyzing error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze error message" },
+      { error: "Failed to analyze error" },
       { status: 500 }
     );
   }
