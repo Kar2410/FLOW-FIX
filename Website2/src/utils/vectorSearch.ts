@@ -9,17 +9,10 @@ const COLLECTION_NAME = "internal_knowledge_base";
 
 const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-  azureOpenAIApiVersion:
-    process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview",
-  azureOpenAIApiInstanceName:
-    process.env.AZURE_OPENAI_API_INSTANCE_NAME ||
-    process.env.AZURE_OPENAI_ENDPOINT?.replace("https://", "").replace(
-      ".openai.azure.com",
-      ""
-    ),
+  azureOpenAIApiVersion: "2024-02-15-preview",
+  azureOpenAIApiInstanceName: "kgnwl0lm6yi5ugbopenai",
   azureOpenAIApiDeploymentName:
-    process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME ||
-    "embedding-model-txt-embedding-3-large",
+    process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME,
   configuration: {
     baseURL: process.env.AZURE_OPENAI_ENDPOINT,
   },
