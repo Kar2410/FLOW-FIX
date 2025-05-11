@@ -70,28 +70,26 @@ export async function processPDF(file: File) {
     const splitDocs = await textSplitter.splitDocuments(docs);
     console.log(`Text split into ${splitDocs.length} chunks`);
 
-    // Connect to MongoDB
-    client = await getMongoClient();
-    const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
-
-    // Generate embeddings and store in MongoDB
+    // Generate embeddings for chunks
     console.log("Generating embeddings...");
     const chunksWithEmbeddings = await Promise.all(
       splitDocs.map(async (doc: Document) => {
-        const embedding = await embeddings.embedQuery(doc.pageContent);
+        const vector = await embeddings.embedQuery(doc.pageContent);
         return {
           content: doc.pageContent,
-          embedding: embedding,
+          vector,
           metadata: {
-            source: fileName,
             page: doc.metadata.page,
-            timestamp: new Date(),
           },
         };
       })
     );
     console.log("Embeddings generated successfully");
+
+    // Connect to MongoDB and store chunks
+    client = await getMongoClient();
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
 
     // Insert chunks into MongoDB
     if (chunksWithEmbeddings.length > 0) {
@@ -102,7 +100,11 @@ export async function processPDF(file: File) {
       console.log(`Successfully inserted ${result.insertedCount} chunks`);
     }
 
-    return { success: true, fileName };
+    return {
+      success: true,
+      fileName,
+      chunks: chunksWithEmbeddings,
+    };
   } catch (error) {
     console.error("Error processing PDF:", error);
     return { success: false, error: "Failed to process PDF" };
@@ -132,10 +134,14 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     const documents = await collection.find({}).toArray();
     console.log(`Found ${documents.length} documents`);
 
+    if (documents.length === 0) {
+      return [];
+    }
+
     // Calculate similarity scores
     const results = documents.map((doc) => ({
       content: doc.content,
-      similarity: cosineSimilarity(queryEmbedding, doc.embedding),
+      similarity: cosineSimilarity(queryEmbedding, doc.vector),
       metadata: doc.metadata,
     }));
 
