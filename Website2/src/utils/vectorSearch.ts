@@ -21,7 +21,8 @@ if (!fs.existsSync(CHUNKS_DIR)) {
 const embeddings = new OpenAIEmbeddings({
   azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
   azureOpenAIApiDeploymentName:
-    process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4-deployment",
+    process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME ||
+    "embedding-model-txt-embedding-3-large",
   azureOpenAIApiVersion: "2024-10-01-preview",
   azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
     "https://",

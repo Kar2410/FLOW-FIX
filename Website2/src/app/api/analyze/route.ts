@@ -74,7 +74,9 @@ Keep the response focused and concise.`;
       // Create embeddings for the error message using Azure OpenAI
       const embeddings = new OpenAIEmbeddings({
         azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
-        azureOpenAIApiDeploymentName: "text-embedding-ada-002",
+        azureOpenAIApiDeploymentName:
+          process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME ||
+          "embedding-model-txt-embedding-3-large",
         azureOpenAIApiVersion: "2024-02-15-preview",
         azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_ENDPOINT?.replace(
           "https://",
