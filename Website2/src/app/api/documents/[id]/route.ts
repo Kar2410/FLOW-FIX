@@ -27,8 +27,14 @@ export async function DELETE(
       );
     }
 
-    // Delete corresponding chunks from knowledge base
-    await knowledgeBaseCollection.deleteMany({ "metadata.source": params.id });
+    // Delete corresponding chunks from knowledge base using both identifiers
+    const deleteChunksResult = await knowledgeBaseCollection.deleteMany({
+      $or: [{ documentId: params.id }, { "metadata.source": params.id }],
+    });
+
+    console.log(
+      `Deleted ${deleteChunksResult.deletedCount} chunks from knowledge base`
+    );
     await client.close();
 
     return NextResponse.json({ message: "Document deleted successfully" });

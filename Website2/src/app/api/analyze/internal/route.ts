@@ -32,8 +32,20 @@ export async function POST(request: Request) {
       bestMatch.similarity
     );
 
+    // Format the response consistently with public source
+    const formattedSolution = `# Error Analysis
+${bestMatch.content.split("\n")[0]}
+
+# Solution
+${bestMatch.content.split("\n").slice(1).join("\n")}
+
+# Source
+From internal knowledge base (${Math.round(
+      bestMatch.similarity * 100
+    )}% relevance)`;
+
     return NextResponse.json({
-      solution: bestMatch.content,
+      solution: formattedSolution,
       source: "internal",
       similarity: bestMatch.similarity,
     });

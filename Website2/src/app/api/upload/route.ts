@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         vector: chunk.vector,
         metadata: {
           page: chunk.metadata.page,
-          source: file.name,
+          source: result.fileName,
         },
       }));
 
