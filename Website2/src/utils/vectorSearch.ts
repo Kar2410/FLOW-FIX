@@ -122,31 +122,55 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     const docCount = await collection.countDocuments();
     console.log(`Total documents in collection: ${docCount}`);
 
+    if (docCount === 0) {
+      console.log("No documents found in the collection");
+      return [];
+    }
+
+    // Verify index exists
+    const indexes = await collection.indexes();
+    const vectorIndex = indexes.find(
+      (index) => index.name === "flowfix_vector_search_index"
+    );
+
+    if (!vectorIndex) {
+      console.error(
+        "Vector search index not found. Please run setupVectorIndex.ts first"
+      );
+      throw new Error("Vector search index not found");
+    }
+
     // Use MongoDB's vector search
     console.log(
       "Performing vector search with index: flowfix_vector_search_index"
     );
-    const searchResults = await collection
-      .aggregate([
-        {
-          $search: {
-            index: "flowfix_vector_search_index",
-            knnBeta: {
-              vector: queryEmbedding,
-              path: "vector",
-              k: 5,
-            },
+
+    const pipeline = [
+      {
+        $search: {
+          index: "flowfix_vector_search_index",
+          knnBeta: {
+            vector: queryEmbedding,
+            path: "vector",
+            k: 5,
           },
         },
-        {
-          $project: {
-            content: 1,
-            metadata: 1,
-            score: { $meta: "searchScore" },
-          },
+      },
+      {
+        $project: {
+          content: 1,
+          metadata: 1,
+          score: { $meta: "searchScore" },
         },
-      ])
-      .toArray();
+      },
+    ];
+
+    console.log(
+      "Executing aggregation pipeline:",
+      JSON.stringify(pipeline, null, 2)
+    );
+
+    const searchResults = await collection.aggregate(pipeline).toArray();
 
     console.log(`Found ${searchResults.length} results`);
     if (searchResults.length > 0) {
@@ -155,11 +179,6 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
         "First result content preview:",
         searchResults[0].content.substring(0, 100)
       );
-    }
-
-    if (searchResults.length === 0) {
-      console.log("No documents found in the database");
-      return [];
     }
 
     // Convert search results to our expected format
@@ -180,7 +199,7 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
       console.error("Error details:", error.message);
       console.error("Error stack:", error.stack);
     }
-    return [];
+    throw error; // Re-throw to handle in the API route
   } finally {
     if (client) {
       await client.close();

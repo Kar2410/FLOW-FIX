@@ -30,7 +30,7 @@ export async function setupMongoDB() {
             fields: {
               vector: {
                 dimensions: 3072,
-                similarity: "dotProduct",
+                similarity: "cosine",
                 type: "knnVector",
               },
             },

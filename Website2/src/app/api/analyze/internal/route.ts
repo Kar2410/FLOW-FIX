@@ -16,7 +16,19 @@ export async function POST(request: Request) {
     console.log("Analyzing error message:", errorMessage);
 
     // Search for similar chunks
-    const results = await searchSimilarChunks(errorMessage);
+    let results;
+    try {
+      results = await searchSimilarChunks(errorMessage);
+    } catch (error) {
+      console.error("Error in vector search:", error);
+      return NextResponse.json(
+        {
+          error: "Failed to search knowledge base",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        { status: 500 }
+      );
+    }
 
     if (results.length === 0) {
       console.log("No matching solutions found in internal knowledge base");
@@ -101,7 +113,10 @@ Keep the response focused and concise. Only include information that directly ad
   } catch (error) {
     console.error("Error analyzing error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze error message" },
+      {
+        error: "Failed to analyze error message",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

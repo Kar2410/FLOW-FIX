@@ -23,7 +23,7 @@ export async function GET() {
             vector: {
               type: "knnVector",
               dimensions: 3072,
-              similarity: "dotProduct",
+              similarity: "cosine",
             },
           },
         },
