@@ -104,18 +104,28 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
   let client;
   try {
     console.log("Starting similarity search...");
+    console.log("Query:", query);
 
     // Generate embedding for the query
     const queryEmbedding = await embeddings.embedQuery(query);
-    console.log("Query embedding generated");
+    console.log(
+      "Query embedding generated with dimensions:",
+      queryEmbedding.length
+    );
 
     // Connect to MongoDB
     client = await getMongoClient();
     const db = client.db(DB_NAME);
     const collection = db.collection(KNOWLEDGE_BASE_COLLECTION);
 
+    // Verify collection has documents
+    const docCount = await collection.countDocuments();
+    console.log(`Total documents in collection: ${docCount}`);
+
     // Use MongoDB's vector search
-    console.log("Performing vector search...");
+    console.log(
+      "Performing vector search with index: flowfix_vector_search_index"
+    );
     const searchResults = await collection
       .aggregate([
         {
@@ -139,6 +149,13 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
       .toArray();
 
     console.log(`Found ${searchResults.length} results`);
+    if (searchResults.length > 0) {
+      console.log("First result score:", searchResults[0].score);
+      console.log(
+        "First result content preview:",
+        searchResults[0].content.substring(0, 100)
+      );
+    }
 
     if (searchResults.length === 0) {
       console.log("No documents found in the database");
@@ -159,6 +176,10 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     return results;
   } catch (error) {
     console.error("Error searching chunks:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return [];
   } finally {
     if (client) {
