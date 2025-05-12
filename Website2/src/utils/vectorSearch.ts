@@ -8,7 +8,8 @@ import { cosineSimilarity } from "./mathUtils";
 // MongoDB connection configuration
 const MONGODB_URI = "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
-const COLLECTION_NAME = "internal_knowledge_base";
+const DOCUMENTS_COLLECTION = "documents";
+const KNOWLEDGE_BASE_COLLECTION = "internal_knowledge_base";
 
 // MongoDB connection options
 const mongoOptions = {
@@ -111,42 +112,51 @@ export async function searchSimilarChunks(query: string, threshold = 0.7) {
     // Connect to MongoDB
     client = await getMongoClient();
     const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
+    const collection = db.collection(KNOWLEDGE_BASE_COLLECTION);
 
-    // Get all documents from MongoDB
-    console.log("Fetching documents from MongoDB...");
-    const documents = await collection.find({}).toArray();
-    console.log(`Found ${documents.length} documents`);
+    // Use MongoDB's vector search
+    console.log("Performing vector search...");
+    const searchResults = await collection
+      .aggregate([
+        {
+          $search: {
+            index: "flowfix_vector_search_index",
+            knnBeta: {
+              vector: queryEmbedding,
+              path: "vector",
+              k: 5,
+            },
+          },
+        },
+        {
+          $project: {
+            content: 1,
+            metadata: 1,
+            score: { $meta: "searchScore" },
+          },
+        },
+      ])
+      .toArray();
 
-    if (documents.length === 0) {
+    console.log(`Found ${searchResults.length} results`);
+
+    if (searchResults.length === 0) {
       console.log("No documents found in the database");
       return [];
     }
 
-    // Calculate similarity scores
-    const results = documents
-      .filter((doc) => {
-        if (!doc.vector || !Array.isArray(doc.vector)) {
-          console.log("Skipping document with invalid vector:", doc._id);
-          return false;
-        }
-        return true;
-      })
-      .map((doc) => ({
-        content: doc.content,
-        similarity: cosineSimilarity(queryEmbedding, doc.vector),
-        metadata: doc.metadata,
+    // Convert search results to our expected format
+    const results = searchResults
+      .filter((result) => result.score >= threshold)
+      .map((result) => ({
+        content: result.content,
+        similarity: result.score,
+        metadata: result.metadata,
       }));
 
-    // Sort by similarity and filter by threshold
-    const relevantResults = results
-      .filter((result) => result.similarity >= threshold)
-      .sort((a, b) => b.similarity - a.similarity);
-    console.log(
-      `${relevantResults.length} results above threshold ${threshold}`
-    );
+    console.log(`${results.length} results above threshold ${threshold}`);
 
-    return relevantResults;
+    return results;
   } catch (error) {
     console.error("Error searching chunks:", error);
     return [];
@@ -165,7 +175,7 @@ export async function deleteDocument(fileName: string) {
 
     client = await getMongoClient();
     const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
+    const collection = db.collection(KNOWLEDGE_BASE_COLLECTION);
 
     // Delete all chunks associated with the file
     const result = await collection.deleteMany({

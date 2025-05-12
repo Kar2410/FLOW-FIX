@@ -6,7 +6,8 @@ import { ChatOpenAI } from "@langchain/openai";
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
-const COLLECTION_NAME = "documents";
+const DOCUMENTS_COLLECTION = "documents";
+const KNOWLEDGE_BASE_COLLECTION = "internal_knowledge_base";
 
 interface SearchResult {
   content: string;
@@ -69,7 +70,7 @@ Keep the response focused and concise.`;
     try {
       const client = await MongoClient.connect(MONGODB_URI);
       const db = client.db(DB_NAME);
-      const collection = db.collection(COLLECTION_NAME);
+      const collection = db.collection(KNOWLEDGE_BASE_COLLECTION);
 
       // Create embeddings for the error message using Azure OpenAI
       const embeddings = new OpenAIEmbeddings({
@@ -93,10 +94,10 @@ Keep the response focused and concise.`;
         .aggregate([
           {
             $search: {
-              index: "default",
+              index: "flowfix_vector_search_index",
               knnBeta: {
                 vector: errorEmbedding,
-                path: "embedding",
+                path: "vector",
                 k: 3,
               },
             },

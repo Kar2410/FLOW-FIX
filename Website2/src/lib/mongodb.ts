@@ -3,7 +3,8 @@ import { MongoClient } from "mongodb";
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/?directConnection=true";
 const DB_NAME = "flowfix";
-const COLLECTION_NAME = "documents";
+const DOCUMENTS_COLLECTION = "documents";
+const KNOWLEDGE_BASE_COLLECTION = "internal_knowledge_base";
 
 // This function should only be called from server-side code
 export async function setupMongoDB() {
@@ -15,20 +16,21 @@ export async function setupMongoDB() {
   try {
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db(DB_NAME);
-    const collection = db.collection(COLLECTION_NAME);
+    const documentsCollection = db.collection(DOCUMENTS_COLLECTION);
+    const knowledgeBaseCollection = db.collection(KNOWLEDGE_BASE_COLLECTION);
 
     // Create vector search index if it doesn't exist
     try {
       await db.command({
-        createSearchIndex: COLLECTION_NAME,
-        name: "default",
+        createSearchIndex: KNOWLEDGE_BASE_COLLECTION,
+        name: "flowfix_vector_search_index",
         definition: {
           mappings: {
             dynamic: true,
             fields: {
-              embedding: {
-                dimensions: 1536,
-                similarity: "cosine",
+              vector: {
+                dimensions: 3072,
+                similarity: "dotProduct",
                 type: "knnVector",
               },
             },
