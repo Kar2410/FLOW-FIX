@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function UserInterface() {
-  const [errorMessage, setErrorMessage] = useState("");
+  const [query, setQuery] = useState("");
   const [publicSolution, setPublicSolution] = useState("");
   const [internalSolution, setInternalSolution] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState("public");
 
   const handleAnalyze = async () => {
-    if (!errorMessage.trim()) return;
+    if (!query.trim()) return;
 
     setIsAnalyzing(true);
     setPublicSolution("");
@@ -22,7 +22,7 @@ export default function UserInterface() {
       const publicResponse = await fetch("/api/analyze/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ errorMessage }),
+        body: JSON.stringify({ query }),
       });
 
       if (publicResponse.ok) {
@@ -34,7 +34,7 @@ export default function UserInterface() {
       const internalResponse = await fetch("/api/analyze/internal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ errorMessage }),
+        body: JSON.stringify({ query }),
       });
 
       if (internalResponse.ok) {
@@ -50,26 +50,26 @@ export default function UserInterface() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">FlowFix Error Analyzer</h1>
+      <h1 className="text-2xl font-bold mb-4">FlowFix Query Assistant</h1>
       <div className="mb-4">
         <textarea
-          placeholder="Paste your error message here..."
-          value={errorMessage}
-          onChange={(e) => setErrorMessage(e.target.value)}
+          placeholder="Enter your question, error message, or query here..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           className="w-full h-32 p-2 border rounded-md"
         />
         <button
           onClick={handleAnalyze}
-          disabled={isAnalyzing || !errorMessage.trim()}
+          disabled={isAnalyzing || !query.trim()}
           className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md disabled:bg-gray-300"
         >
           {isAnalyzing ? (
             <span className="flex items-center">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analyzing...
+              Processing...
             </span>
           ) : (
-            "Analyze Error"
+            "Get Answer"
           )}
         </button>
       </div>
@@ -110,7 +110,8 @@ export default function UserInterface() {
               </div>
             ) : (
               <p className="text-gray-500">
-                Enter an error message and click Analyze to get a solution.
+                Enter a question, error message, or query and click Get Answer
+                to get a solution.
               </p>
             )
           ) : internalSolution ? (
@@ -138,8 +139,8 @@ export default function UserInterface() {
             )
           ) : (
             <p className="text-gray-500">
-              Enter an error message and click Analyze to search the internal
-              knowledge base.
+              Enter a question, error message, or query and click Get Answer to
+              search the internal knowledge base.
             </p>
           )}
         </div>

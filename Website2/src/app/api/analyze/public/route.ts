@@ -3,16 +3,13 @@ import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
-    const { errorMessage } = await request.json();
+    const { query } = await request.json();
 
-    if (!errorMessage) {
-      return NextResponse.json(
-        { error: "Error message is required" },
-        { status: 400 }
-      );
+    if (!query) {
+      return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
-    // Generate public solution using Azure OpenAI
+    // Generate solution using Azure OpenAI
     const chat = new ChatOpenAI({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
       azureOpenAIApiDeploymentName: "gpt-4-deployment",
@@ -27,36 +24,45 @@ export async function POST(request: Request) {
       temperature: 0.7,
     });
 
-    const systemPrompt = `You are a coding assistant. Analyze this error and provide a concise solution.`;
-    const userPrompt = `Error: ${errorMessage}
+    const systemPrompt = `You are a versatile assistant capable of handling both technical and general queries. Your expertise includes:
+1. Technical questions and code-related solutions
+2. Error diagnostics and troubleshooting
+3. General information and explanations
+4. Best practices and implementation guidance
+5. Conceptual explanations and examples
+
+Analyze the query and provide a comprehensive response in an appropriate format, prioritizing clarity and accuracy.`;
+
+    const userPrompt = `Query: ${query}
 
 Provide a response in this format:
 
-# Error Analysis
-[One line explanation of the error]
+# Analysis
+[Clear explanation of the query and its context]
 
-# Solution
-[2-3 bullet points with clear steps]
+# Response
+[Detailed response with relevant information]
 
-# Code Fix
-\`\`\`[language]
-[only the relevant code fix]
-\`\`\`
+# Code Example
+[If the query is code-related, include relevant code examples with explanations]
 
-Keep the response focused and concise.`;
+# Additional Information
+[Additional context, best practices, or related concepts]
 
-    const publicResponse = await chat.invoke([
+Keep the response focused, accurate, and helpful. For technical queries, include practical examples and code snippets where appropriate. For general queries, provide clear and concise explanations.`;
+
+    const response = await chat.invoke([
       ["system", systemPrompt],
       ["user", userPrompt],
     ]);
 
     return NextResponse.json({
-      solution: publicResponse.content,
+      solution: response.content,
     });
   } catch (error) {
-    console.error("Public analysis error:", error);
+    console.error("Analysis error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze error" },
+      { error: "Failed to analyze query" },
       { status: 500 }
     );
   }
