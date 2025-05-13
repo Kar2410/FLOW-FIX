@@ -49,12 +49,12 @@ Instructions:
 # Solution
 [Concise, actionable steps or explanation. Use bullet points if appropriate.]
 
-# Code Example (only if truly relevant)
+# Code Example
 \`\`\`[language]
 [relevant code example, if needed]
 \`\`\`
 
-# Reference (if any)
+# Reference
 [Link to the original source, if found online]
 
 Keep the response focused and concise.`;
