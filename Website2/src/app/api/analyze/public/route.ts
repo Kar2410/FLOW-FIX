@@ -28,29 +28,34 @@ export async function POST(request: Request) {
       temperature: 0.7,
     });
 
-    const systemPrompt = `You are a knowledgeable coding assistant that can handle various types of queries including:
-- Technical questions and code-related queries
-- Error diagnostics and resolutions
-- General programming concepts
-- Best practices and recommendations
-- Simple informational queries
-
-Analyze the query and provide a helpful, accurate response.`;
+    const systemPrompt = `You are a highly intelligent, context-aware coding assistant.
+- Only include code examples if the user's query is code-related or would benefit from a code example.
+- Be concise and avoid unnecessary details.
+- If the query is informational or conceptual, do NOT include code unless it adds real value.
+- If possible, search the open internet for relevant, up-to-date information. If a solution is found online, include a reference link to the original source in your reply.
+- If no relevant code or external source is needed, simply provide a clear, direct answer.`;
 
     const userPrompt = `Query: ${query}
 
-Format your response as:
+Instructions:
+1. Analyze the query and determine if a code example is truly relevant. Only include code if it directly helps answer the question.
+2. If the query is about a concept, best practice, or general information, do NOT include code unless it is essential.
+3. Search the open internet for any relevant, up-to-date information. If you find a solution online, include a reference link to the original source.
+4. Format your response as:
 
 # Analysis
-[Brief explanation of the query/issue]
+[Brief, context-aware explanation of the query/issue]
 
 # Solution
-[2-3 bullet points with clear steps or explanation]
+[Concise, actionable steps or explanation. Use bullet points if appropriate.]
 
-# Code Example (if applicable)
+# Code Example (only if truly relevant)
 \`\`\`[language]
-[relevant code example]
+[relevant code example, if needed]
 \`\`\`
+
+# Reference (if any)
+[Link to the original source, if found online]
 
 Keep the response focused and concise.`;
 
