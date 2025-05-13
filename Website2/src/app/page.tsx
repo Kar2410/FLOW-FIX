@@ -10,7 +10,7 @@ import {
 } from "react-icons/fi";
 import Link from "next/link";
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
@@ -217,13 +217,13 @@ export default function Home() {
             ) : activeTab === "public" ? (
               publicAnalysis ? (
                 <div className="prose max-w-none">
-                  <ReactMarkdown children={publicAnalysis || ""} />
+                  <MarkdownRenderer>{publicAnalysis || ""}</MarkdownRenderer>
                 </div>
               ) : null
             ) : (
               internalAnalysis && (
                 <div className="prose max-w-none">
-                  <ReactMarkdown children={internalAnalysis || ""} />
+                  <MarkdownRenderer>{internalAnalysis || ""}</MarkdownRenderer>
                 </div>
               )
             )}
