@@ -87,10 +87,10 @@ export default function Home() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Error Analysis Portal
+            Centralized Solutioning Portal
           </h2>
           <p className="text-lg text-gray-600">
-            Get instant analysis and solutions for your error messages
+            Your gateway to fast & intelligent solutions.
           </p>
         </div>
 
@@ -182,7 +182,7 @@ export default function Home() {
               ) : (
                 <>
                   <FiSearch className="w-5 h-5 mr-2" />
-                  Analyze Error
+                  Let’s Dive In!
                 </>
               )}
             </button>
