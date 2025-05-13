@@ -4,10 +4,14 @@ import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
-    const { query } = await request.json();
+    const body = await request.json();
+    const query = body.query || body.errorMessage;
 
     if (!query) {
-      return NextResponse.json({ error: "No query provided" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No query or error message provided" },
+        { status: 400 }
+      );
     }
 
     console.log("Processing query:", query);

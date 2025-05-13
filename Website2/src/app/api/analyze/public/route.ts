@@ -3,10 +3,14 @@ import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
-    const { query } = await request.json();
+    const body = await request.json();
+    const query = body.query || body.errorMessage;
 
     if (!query) {
-      return NextResponse.json({ error: "Query is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Query or error message is required" },
+        { status: 400 }
+      );
     }
 
     // Generate public solution using Azure OpenAI
