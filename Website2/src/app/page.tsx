@@ -74,21 +74,23 @@ export default function Home() {
               />
               <h1 className="text-2xl font-bold text-gray-900">UHC FlowFix</h1>
             </div>
-            <Link
-              href="/admin"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-            >
-              <FiExternalLink className="w-4 h-4 mr-2" />
-              Admin Portal
-            </Link>
-            <a
-              href="/FlowFix.vsix"
-              download
-              className="inline-flex items-center ml-3 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
-            >
-              <FiDownload className="w-4 h-4 mr-2" />
-              Get Extension
-            </a>
+            <div className="flex items-center space-x-3">
+              <Link
+                href="/admin"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+              >
+                <FiExternalLink className="w-4 h-4 mr-2" />
+                Admin Portal
+              </Link>
+              <a
+                href="/FlowFix.vsix"
+                download
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
+              >
+                <FiDownload className="w-4 h-4 mr-2" />
+                Get Extension
+              </a>
+            </div>
           </div>
         </div>
       </nav>
