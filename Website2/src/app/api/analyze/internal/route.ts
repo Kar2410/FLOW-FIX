@@ -4,21 +4,24 @@ import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
-    const { query } = await request.json();
+    const { errorMessage } = await request.json();
 
-    if (!query) {
-      return NextResponse.json({ error: "Query is required" }, { status: 400 });
+    if (!errorMessage) {
+      return NextResponse.json(
+        { error: "No error message provided" },
+        { status: 400 }
+      );
     }
 
-    console.log("Analyzing query:", query);
+    console.log("Analyzing error message:", errorMessage);
 
     // Search for similar chunks
-    const results = await searchSimilarChunks(query);
+    const results = await searchSimilarChunks(errorMessage);
 
     if (results.length === 0) {
-      console.log("No matching information found in internal knowledge base");
+      console.log("No matching solutions found in internal knowledge base");
       return NextResponse.json({
-        solution: "No relevant information found in internal knowledge base.",
+        solution: "No solution found in internal knowledge base.",
         source: "internal",
       });
     }
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
     // Get the most relevant result
     const bestMatch = results[0];
     console.log(
-      "Found matching information with similarity:",
+      "Found matching solution with similarity:",
       bestMatch.similarity
     );
 
@@ -46,43 +49,34 @@ export async function POST(request: Request) {
     });
 
     // Ask LLM to analyze if the match is relevant and format the response
-    const systemPrompt = `You are a versatile assistant capable of handling both technical and general queries. Your expertise includes:
-1. Technical questions and code-related solutions
-2. Error diagnostics and troubleshooting
-3. General information and explanations
-4. Best practices and implementation guidance
-5. Conceptual explanations and examples
+    const systemPrompt = `You are a coding assistant analyzing if a knowledge base entry contains a solution for a specific error.`;
+    const userPrompt = `Error to analyze: ${errorMessage}
 
-Your role is to analyze knowledge base entries and provide comprehensive responses based on the best-matching content.`;
-    const userPrompt = `Query: ${query}
-
-Best matching knowledge base entry (similarity: ${Math.round(
-      bestMatch.similarity * 100
-    )}%):
+Knowledge base entry (similarity: ${Math.round(bestMatch.similarity * 100)}%):
 ${bestMatch.content}
 
 Instructions:
-1. If this knowledge base entry does NOT contain relevant information, respond with ONLY: "No relevant information found in internal knowledge base."
-2. If it DOES contain relevant information, provide a response in this format:
+1. First, determine if this knowledge base entry contains a revelent/close solution for the specific error above.
+2. If it does NOT contain a revelent/close solution, respond with ONLY: "No solution found in internal knowledge base."
+3. If it DOES contain a revelent/close solution, format your response as:
 
-# Analysis
-[Clear explanation of how this knowledge base entry relates to the query]
+# Error Analysis
+[One line explanation of the error]
 
-# Response
-[Detailed response with relevant information from the knowledge base]
+# Solution
+[2-3 bullet points with clear steps]
 
-# Code Example
-[If the query is code-related and the knowledge base contains code, include it here with explanations]
-
-# Additional Information
-[Additional context, best practices, or related concepts from the knowledge base]
+# Code Fix
+\`\`\`[language]
+[only the relevant code fix]
+\`\`\`
 
 # Source
 From internal knowledge base (${Math.round(
       bestMatch.similarity * 100
     )}% relevance)
 
-Keep the response focused, accurate, and helpful. For technical queries, include practical examples and code snippets where appropriate. For general queries, provide clear and concise explanations.`;
+Keep the response focused and concise. Only include information that directly addresses the error.`;
 
     const response = await chat.invoke([
       ["system", systemPrompt],
@@ -91,11 +85,8 @@ Keep the response focused, accurate, and helpful. For technical queries, include
 
     const formattedSolution = response.content.toString().trim();
 
-    // If the LLM determined there's no relevant information, return early
-    if (
-      formattedSolution ===
-      "No relevant information found in internal knowledge base."
-    ) {
+    // If the LLM determined there's no solution, return early
+    if (formattedSolution === "No solution found in internal knowledge base.") {
       return NextResponse.json({
         solution: formattedSolution,
         source: "internal",
@@ -108,9 +99,9 @@ Keep the response focused, accurate, and helpful. For technical queries, include
       similarity: bestMatch.similarity,
     });
   } catch (error) {
-    console.error("Error analyzing query:", error);
+    console.error("Error analyzing error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze query" },
+      { error: "Failed to analyze error message" },
       { status: 500 }
     );
   }
