@@ -45,17 +45,12 @@ export async function POST(request: Request) {
 
     const systemPrompt = `You are a knowledge base assistant. Your task is to ONLY use the provided knowledge base content to answer queries. 
 DO NOT generate generic responses or code examples that are not explicitly present in the knowledge base content.
-If the knowledge base content doesn't contain a direct/colose or revelent answer, acknowledge that and do not make up information.`;
+If the knowledge base content doesn't contain a direct/close or relevant answer, acknowledge that and do not make up information.`;
 
-    // Get the most relevant result
-    const bestMatch = results[0];
-    console.log(
-      "Found matching content with similarity:",
-      bestMatch.similarity
-    );
+    // Get all relevant results above a lower threshold
+    const relevantResults = results.filter((result) => result.similarity > 0.3);
 
-    // Only proceed if we have a good match (similarity threshold)
-    if (bestMatch.similarity < 0.5) {
+    if (relevantResults.length === 0) {
       return NextResponse.json({
         solution:
           "No sufficiently relevant information found in the internal knowledge base.",
@@ -63,10 +58,15 @@ If the knowledge base content doesn't contain a direct/colose or revelent answer
       });
     }
 
+    // Combine all relevant chunks for better context
+    const combinedContent = relevantResults
+      .map((result) => result.content)
+      .join("\n\n");
+
     const userPrompt = `Query: ${query}
 
-Knowledge base content (similarity: ${Math.round(bestMatch.similarity * 100)}%):
-${bestMatch.content}
+Knowledge base content:
+${combinedContent}
 
 Instructions:
 1. ONLY use the provided knowledge base content to answer the query.
@@ -87,7 +87,7 @@ Instructions:
 
 # Source
 From internal knowledge base (${Math.round(
-      bestMatch.similarity * 100
+      relevantResults[0].similarity * 100
     )}% relevance)`;
 
     const response = await chat.invoke([
@@ -100,7 +100,7 @@ From internal knowledge base (${Math.round(
     return NextResponse.json({
       solution: formattedSolution,
       source: "internal",
-      similarity: bestMatch.similarity,
+      similarity: relevantResults[0].similarity,
     });
   } catch (error) {
     console.error("Error processing query:", error);
