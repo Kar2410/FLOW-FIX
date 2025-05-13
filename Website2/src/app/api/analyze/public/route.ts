@@ -3,13 +3,10 @@ import { ChatOpenAI } from "@langchain/openai";
 
 export async function POST(request: Request) {
   try {
-    const { errorMessage } = await request.json();
+    const { query } = await request.json();
 
-    if (!errorMessage) {
-      return NextResponse.json(
-        { error: "Error message is required" },
-        { status: 400 }
-      );
+    if (!query) {
+      return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
     // Generate public solution using Azure OpenAI
@@ -27,20 +24,28 @@ export async function POST(request: Request) {
       temperature: 0.7,
     });
 
-    const systemPrompt = `You are a coding assistant. Analyze this error and provide a concise solution.`;
-    const userPrompt = `Error: ${errorMessage}
+    const systemPrompt = `You are a knowledgeable coding assistant that can handle various types of queries including:
+- Technical questions and code-related queries
+- Error diagnostics and resolutions
+- General programming concepts
+- Best practices and recommendations
+- Simple informational queries
 
-Provide a response in this format:
+Analyze the query and provide a helpful, accurate response.`;
 
-# Error Analysis
-[One line explanation of the error]
+    const userPrompt = `Query: ${query}
+
+Format your response as:
+
+# Analysis
+[Brief explanation of the query/issue]
 
 # Solution
-[2-3 bullet points with clear steps]
+[2-3 bullet points with clear steps or explanation]
 
-# Code Fix
+# Code Example (if applicable)
 \`\`\`[language]
-[only the relevant code fix]
+[relevant code example]
 \`\`\`
 
 Keep the response focused and concise.`;
@@ -56,7 +61,7 @@ Keep the response focused and concise.`;
   } catch (error) {
     console.error("Public analysis error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze error" },
+      { error: "Failed to process query" },
       { status: 500 }
     );
   }
