@@ -7,6 +7,7 @@ import {
   FiCheckCircle,
   FiUpload,
   FiExternalLink,
+  FiDownload,
 } from "react-icons/fi";
 import Link from "next/link";
 import Image from "next/image";
@@ -80,6 +81,14 @@ export default function Home() {
               <FiExternalLink className="w-4 h-4 mr-2" />
               Admin Portal
             </Link>
+            <a
+              href="/FlowFix.vsix"
+              download
+              className="inline-flex items-center ml-3 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
+            >
+              <FiDownload className="w-4 h-4 mr-2" />
+              Get Extension
+            </a>
           </div>
         </div>
       </nav>
@@ -182,7 +191,7 @@ export default function Home() {
               ) : (
                 <>
                   <FiSearch className="w-5 h-5 mr-2" />
-                  Let’s Dive In!
+                  Let's Dive In!
                 </>
               )}
             </button>
