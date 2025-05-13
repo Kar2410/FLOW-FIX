@@ -99,7 +99,7 @@ export async function processPDF(file: File) {
   }
 }
 
-export async function searchSimilarChunks(query: string, threshold = 0.7) {
+export async function searchSimilarChunks(query: string, threshold = 0.3) {
   let client;
   try {
     console.log("Starting similarity search...");
