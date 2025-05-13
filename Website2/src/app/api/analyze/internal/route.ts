@@ -19,6 +19,15 @@ export async function POST(request: Request) {
     // Search for similar chunks
     const results = await searchSimilarChunks(query);
 
+    // If no matches found in knowledge base, return early
+    if (results.length === 0) {
+      return NextResponse.json({
+        solution:
+          "No matching information found in the internal knowledge base.",
+        source: "internal",
+      });
+    }
+
     // Initialize ChatOpenAI
     const chat = new ChatOpenAI({
       azureOpenAIApiKey: process.env.AZURE_OPENAI_API_KEY,
@@ -34,66 +43,52 @@ export async function POST(request: Request) {
       temperature: 0.7,
     });
 
-    let systemPrompt = `You are a knowledgeable coding assistant that can handle various types of queries including:
-- Technical questions and code-related queries
-- Error diagnostics and resolutions
-- General programming concepts
-- Best practices and recommendations
-- Simple informational queries
+    const systemPrompt = `You are a knowledge base assistant. Your task is to ONLY use the provided knowledge base content to answer queries. 
+DO NOT generate generic responses or code examples that are not explicitly present in the knowledge base content.
+If the knowledge base content doesn't contain a direct/colose or revelent answer, acknowledge that and do not make up information.`;
 
-Analyze the query and provide a helpful, accurate response.`;
+    // Get the most relevant result
+    const bestMatch = results[0];
+    console.log(
+      "Found matching content with similarity:",
+      bestMatch.similarity
+    );
 
-    let userPrompt = `Query: ${query}`;
+    // Only proceed if we have a good match (similarity threshold)
+    if (bestMatch.similarity < 0.5) {
+      return NextResponse.json({
+        solution:
+          "No sufficiently relevant information found in the internal knowledge base.",
+        source: "internal",
+      });
+    }
 
-    // If we have matching results from the knowledge base, include them
-    if (results.length > 0) {
-      const bestMatch = results[0];
-      console.log(
-        "Found matching content with similarity:",
-        bestMatch.similarity
-      );
+    const userPrompt = `Query: ${query}
 
-      userPrompt += `\n\nRelevant knowledge base entry (similarity: ${Math.round(
-        bestMatch.similarity * 100
-      )}%):
+Knowledge base content (similarity: ${Math.round(bestMatch.similarity * 100)}%):
 ${bestMatch.content}
 
 Instructions:
-1. First, determine if this knowledge base entry is relevant to the query.
-2. If it is relevant, incorporate it into your response.
-3. If it's not relevant, provide a general response based on your knowledge.
-
-Format your response as:
+1. ONLY use the provided knowledge base content to answer the query.
+2. DO NOT add any information that is not present in the knowledge base content.
+3. If the knowledge base content doesn't directly answer the query, say so.
+4. Format your response as:
 
 # Analysis
-[Brief explanation of the query/issue]
+[Brief explanation based ONLY on the knowledge base content]
 
 # Solution
-[2-3 bullet points with clear steps or explanation]
+[Steps or information ONLY from the knowledge base content]
 
-# Code Example (if applicable)
+# Code Example (ONLY if code is explicitly present in the knowledge base content)
 \`\`\`[language]
-[relevant code example]
+[exact code from knowledge base]
 \`\`\`
 
 # Source
 From internal knowledge base (${Math.round(
-        bestMatch.similarity * 100
-      )}% relevance)`;
-    } else {
-      userPrompt += `\n\nFormat your response as:
-
-# Analysis
-[Brief explanation of the query/issue]
-
-# Solution
-[2-3 bullet points with clear steps or explanation]
-
-# Code Example (if applicable)
-\`\`\`[language]
-[relevant code example]
-\`\`\``;
-    }
+      bestMatch.similarity * 100
+    )}% relevance)`;
 
     const response = await chat.invoke([
       ["system", systemPrompt],
@@ -105,7 +100,7 @@ From internal knowledge base (${Math.round(
     return NextResponse.json({
       solution: formattedSolution,
       source: "internal",
-      similarity: results.length > 0 ? results[0].similarity : null,
+      similarity: bestMatch.similarity,
     });
   } catch (error) {
     console.error("Error processing query:", error);
