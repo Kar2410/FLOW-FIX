@@ -2,7 +2,7 @@
 
 FlowFix is a VS Code extension that helps developers quickly understand and fix errors by providing AI-powered analysis and solutions.
 
-## Features
+## Featuress
 
 - Automatic error detection from the Problems panel
 - Manual error input through a chat interface
